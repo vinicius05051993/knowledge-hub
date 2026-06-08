@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
 	"indexer/internal/apikeys"
 	"indexer/internal/config"
 	"indexer/internal/database"
+	"indexer/internal/documents"
+	"indexer/internal/opensearch"
 	"indexer/internal/server"
 )
 
@@ -15,6 +18,7 @@ func main() {
 	cfg := config.Load()
 
 	db, err := database.NewMySQL(cfg)
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -29,9 +33,32 @@ func main() {
 			apiKeyRepository,
 		)
 
-	router := server.NewRouter(
+	searchClient :=
+		opensearch.NewClient(cfg)
+
+	searchService :=
+		opensearch.NewService(
+			searchClient,
+		)
+
+	documentRepository :=
+		documents.NewRepository(db)
+
+	documentService :=
+		documents.NewService(
+			documentRepository,
+			searchService,
+		)
+
+	documentHandler :=
+		documents.NewHandler(
+			documentService,
+		)
+
+	app := server.NewApp(
 		db,
 		apiKeyService,
+		documentHandler,
 	)
 
 	address := ":" + cfg.AppPort
@@ -43,7 +70,7 @@ func main() {
 
 	err = http.ListenAndServe(
 		address,
-		router,
+		app.Router(),
 	)
 
 	if err != nil {

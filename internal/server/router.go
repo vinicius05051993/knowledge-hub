@@ -30,5 +30,15 @@ func (s *Server) Router() *http.ServeMux {
 		),
 	)
 
+	router.Handle(
+		"POST /documents/upsert",
+		middleware.AuthMiddleware(
+			s.apiKeyService,
+			http.HandlerFunc(
+				s.documentHandler.UpsertDocuments,
+			),
+		),
+	)
+
 	return router
 }
