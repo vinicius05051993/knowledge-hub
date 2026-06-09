@@ -180,21 +180,37 @@ func (r *Repository) Search(
 	filters map[string]string,
 ) ([]Document, error) {
 
-	if len(documentKeys) == 0 {
-		return []Document{}, nil
-	}
+	query := `
+	SELECT *
+	FROM documents
+	WHERE 1 = 1
+	`
 
-	query, args, err := sqlx.In(
-		`
-		SELECT *
-		FROM documents
-		WHERE document_key IN (?)
-		`,
-		documentKeys,
+	args := make(
+		[]any,
+		0,
 	)
 
-	if err != nil {
-		return nil, err
+	if len(documentKeys) > 0 {
+
+		inQuery, inArgs, err := sqlx.In(
+			`
+			document_key IN (?)
+			`,
+			documentKeys,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		query += `
+		AND ` + inQuery
+
+		args = append(
+			args,
+			inArgs...,
+		)
 	}
 
 	for field, value := range filters {
@@ -226,7 +242,7 @@ func (r *Repository) Search(
 
 	var documents []Document
 
-	err = r.db.SelectContext(
+	err := r.db.SelectContext(
 		ctx,
 		&documents,
 		query,

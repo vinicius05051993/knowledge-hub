@@ -34,6 +34,11 @@ func (h *Handler) Search(
 		request.Limit = 10
 	}
 
+	if request.Limit > 100 {
+
+		request.Limit = 100
+	}
+
 	results, err :=
 		h.service.Search(
 			r.Context(),

@@ -127,6 +127,15 @@ func (s *Service) Search(
 	filters map[string]string,
 ) ([]Document, error) {
 
+	if query == "" {
+
+		return s.repository.Search(
+			ctx,
+			nil,
+			filters,
+		)
+	}
+
 	results, err :=
 		s.indexer.Search(
 			ctx,
