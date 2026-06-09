@@ -23,6 +23,7 @@ func (r *Repository) Upsert(
 
 	query := `
 	INSERT INTO documents (
+		document_key,
 		namespace,
 		external_id,
 		title,
@@ -32,7 +33,7 @@ func (r *Repository) Upsert(
 		updated_at
 	)
 	VALUES (
-		?,?,?,?,?,?,?
+		?,?,?,?,?,?,?,?
 	)
 	ON DUPLICATE KEY UPDATE
 		title = VALUES(title),
@@ -44,6 +45,7 @@ func (r *Repository) Upsert(
 	_, err := r.db.ExecContext(
 		ctx,
 		query,
+		doc.DocumentKey,
 		doc.Namespace,
 		doc.ExternalID,
 		doc.Title,
@@ -87,6 +89,48 @@ func (r *Repository) FindByExternalID(
 	return &document, nil
 }
 
+func (r *Repository) FindByDocumentKeys(
+	ctx context.Context,
+	documentKeys []string,
+) ([]Document, error) {
+
+	if len(documentKeys) == 0 {
+		return []Document{}, nil
+	}
+
+	query, args, err := sqlx.In(
+		`
+		SELECT *
+		FROM documents
+		WHERE document_key IN (?)
+		`,
+		documentKeys,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	query = r.db.Rebind(
+		query,
+	)
+
+	var documents []Document
+
+	err = r.db.SelectContext(
+		ctx,
+		&documents,
+		query,
+		args...,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return documents, nil
+}
+
 func (r *Repository) DeleteByExternalIDs(
 	ctx context.Context,
 	namespace string,
@@ -97,30 +141,25 @@ func (r *Repository) DeleteByExternalIDs(
 		return nil
 	}
 
-	query := `
-	DELETE FROM documents
-	WHERE namespace = ?
-	AND external_id IN (?
-	`
-
-	args := []any{
+	query, args, err := sqlx.In(
+		`
+		DELETE FROM documents
+		WHERE namespace = ?
+		AND external_id IN (?)
+		`,
 		namespace,
+		externalIDs,
+	)
+
+	if err != nil {
+		return err
 	}
 
-	for i := 1; i < len(externalIDs); i++ {
-		query += ",?"
-	}
+	query = r.db.Rebind(
+		query,
+	)
 
-	query += ")"
-
-	for _, externalID := range externalIDs {
-		args = append(
-			args,
-			externalID,
-		)
-	}
-
-	_, err := r.db.ExecContext(
+	_, err = r.db.ExecContext(
 		ctx,
 		query,
 		args...,

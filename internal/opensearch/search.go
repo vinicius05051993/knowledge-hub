@@ -12,8 +12,11 @@ import (
 type searchResponse struct {
 	Hits struct {
 		Hits []struct {
-			Score  float64 `json:"_score"`
+			Score float64 `json:"_score"`
+
 			Source struct {
+				DocumentKey string `json:"document_key"`
+
 				Namespace string `json:"namespace"`
 
 				ExternalID string `json:"external_id"`
@@ -107,17 +110,18 @@ func Search(
 
 	for _, hit := range result.Hits.Hits {
 
-		searchResults =
-			append(
-				searchResults,
-				SearchResult{
-					Namespace: hit.Source.Namespace,
+		searchResults = append(
+			searchResults,
+			SearchResult{
+				DocumentKey: hit.Source.DocumentKey,
 
-					ExternalID: hit.Source.ExternalID,
+				Namespace: hit.Source.Namespace,
 
-					Score: hit.Score,
-				},
-			)
+				ExternalID: hit.Source.ExternalID,
+
+				Score: hit.Score,
+			},
+		)
 	}
 
 	return searchResults, nil

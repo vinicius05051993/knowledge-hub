@@ -53,7 +53,7 @@ func TestDocumentServiceUpsert(
 		)
 
 	document := &documents.Document{
-		Namespace: "test",
+		Namespace:  "test",
 		ExternalID: "service-test",
 		Title:      "Magento 2.4",
 		Text:       "Magento ecommerce platform",
@@ -71,6 +71,14 @@ func TestDocumentServiceUpsert(
 		t.Fatal(err)
 	}
 
+	if document.DocumentKey !=
+		"test:service-test" {
+
+		t.Fatal(
+			"document key not generated",
+		)
+	}
+
 	foundDocument, err :=
 		documentRepository.FindByExternalID(
 			context.Background(),
@@ -86,6 +94,14 @@ func TestDocumentServiceUpsert(
 
 		t.Fatal(
 			"document not found in mysql",
+		)
+	}
+
+	if foundDocument.DocumentKey !=
+		"test:service-test" {
+
+		t.Fatal(
+			"unexpected document key",
 		)
 	}
 
@@ -113,8 +129,24 @@ func TestDocumentServiceUpsert(
 
 	for _, result := range results {
 
-		if result.ExternalID ==
-			"service-test" {
+		if result.DocumentKey ==
+			"test:service-test" {
+
+			if result.Namespace !=
+				"test" {
+
+				t.Fatal(
+					"unexpected namespace",
+				)
+			}
+
+			if result.ExternalID !=
+				"service-test" {
+
+				t.Fatal(
+					"unexpected external id",
+				)
+			}
 
 			found = true
 

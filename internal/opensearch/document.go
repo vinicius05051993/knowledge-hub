@@ -15,12 +15,6 @@ func IndexDocument(
 	document *Document,
 ) error {
 
-	documentID := fmt.Sprintf(
-		"%s:%s",
-		document.Namespace,
-		document.ExternalID,
-	)
-
 	payload, err := json.Marshal(
 		document,
 	)
@@ -36,7 +30,7 @@ func IndexDocument(
 			fmt.Sprintf(
 				"%s/_doc/%s?refresh=true",
 				DocumentsIndex,
-				documentID,
+				document.DocumentKey,
 			),
 		),
 		bytes.NewBuffer(payload),
@@ -76,11 +70,10 @@ func DeleteDocument(
 	externalID string,
 ) error {
 
-	documentID := fmt.Sprintf(
-		"%s:%s",
-		namespace,
-		externalID,
-	)
+	documentKey :=
+		namespace +
+			":" +
+			externalID
 
 	req, err := http.NewRequestWithContext(
 		ctx,
@@ -89,7 +82,7 @@ func DeleteDocument(
 			fmt.Sprintf(
 				"%s/_doc/%s?refresh=true",
 				DocumentsIndex,
-				documentID,
+				documentKey,
 			),
 		),
 		nil,

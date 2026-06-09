@@ -19,6 +19,7 @@ func TestIndexDocument(
 		opensearch.NewClient(cfg)
 
 	document := &opensearch.Document{
+		DocumentKey: "test:123",
 		Namespace: "test",
 		ExternalID: "123",
 		Title: "Magento 2.4",

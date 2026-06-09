@@ -19,9 +19,14 @@ func TestSearchDocument(
 		opensearch.NewClient(cfg)
 
 	document := &opensearch.Document{
+		DocumentKey: "test:999",
+
 		Namespace: "test",
+
 		ExternalID: "999",
+
 		Title: "Magento 2.4",
+
 		Text: "Magento é uma plataforma de ecommerce",
 	}
 
@@ -68,7 +73,24 @@ func TestSearchDocument(
 
 	for _, result := range results {
 
-		if result.ExternalID == "999" {
+		if result.DocumentKey ==
+			"test:999" {
+
+			if result.Namespace !=
+				"test" {
+
+				t.Fatal(
+					"unexpected namespace",
+				)
+			}
+
+			if result.ExternalID !=
+				"999" {
+
+				t.Fatal(
+					"unexpected external id",
+				)
+			}
 
 			found = true
 

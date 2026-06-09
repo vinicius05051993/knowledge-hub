@@ -50,6 +50,11 @@ func (s *Service) Upsert(
 
 	document.UpdatedAt = now
 
+	document.DocumentKey =
+		document.Namespace +
+		":" +
+		document.ExternalID
+
 	err := s.repository.Upsert(
 		ctx,
 		document,
@@ -62,6 +67,7 @@ func (s *Service) Upsert(
 	err = s.indexer.IndexDocument(
 		ctx,
 		&opensearch.Document{
+			DocumentKey: document.DocumentKey,
 			Namespace: document.Namespace,
 			ExternalID: document.ExternalID,
 			Title:      document.Title,

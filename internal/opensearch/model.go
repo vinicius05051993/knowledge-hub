@@ -1,6 +1,8 @@
 package opensearch
 
 type Document struct {
+	DocumentKey string `json:"document_key"`
+
 	Namespace string `json:"namespace"`
 
 	ExternalID string `json:"external_id"`
@@ -11,6 +13,8 @@ type Document struct {
 }
 
 type SearchResult struct {
+	DocumentKey string
+
 	Namespace string
 
 	ExternalID string

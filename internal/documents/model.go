@@ -5,6 +5,8 @@ import "time"
 type Document struct {
 	ID int64 `db:"id"`
 
+	DocumentKey string `db:"document_key"`
+
 	Namespace string `db:"namespace"`
 	ExternalID string `db:"external_id"`
 
