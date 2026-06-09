@@ -2,6 +2,7 @@ package documents
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	"indexer/internal/opensearch"
@@ -58,8 +59,8 @@ func (s *Service) Upsert(
 
 	document.DocumentKey =
 		document.Namespace +
-		":" +
-		document.ExternalID
+			":" +
+			document.ExternalID
 
 	err := s.repository.Upsert(
 		ctx,
@@ -74,10 +75,10 @@ func (s *Service) Upsert(
 		ctx,
 		&opensearch.Document{
 			DocumentKey: document.DocumentKey,
-			Namespace: document.Namespace,
-			ExternalID: document.ExternalID,
-			Title:      document.Title,
-			Text:       document.Text,
+			Namespace:   document.Namespace,
+			ExternalID:  document.ExternalID,
+			Title:       document.Title,
+			Text:        document.Text,
 		},
 	)
 
@@ -143,12 +144,12 @@ func (s *Service) Search(
 			limit,
 		)
 
-	if len(results) == 0 {
-		return []Document{}, nil
-	}
-
 	if err != nil {
 		return nil, err
+	}
+
+	if len(results) == 0 {
+		return []Document{}, nil
 	}
 
 	documentKeys :=
@@ -158,17 +159,47 @@ func (s *Service) Search(
 			len(results),
 		)
 
-	for _, result := range results {
+	order :=
+		make(
+			map[string]int,
+			len(results),
+		)
+
+	for i, result := range results {
 
 		documentKeys = append(
 			documentKeys,
 			result.DocumentKey,
 		)
+
+		order[
+			result.DocumentKey,
+		] = i
 	}
 
-	return s.repository.Search(
-		ctx,
-		documentKeys,
-		filters,
+	documents, err :=
+		s.repository.Search(
+			ctx,
+			documentKeys,
+			filters,
+		)
+
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Slice(
+		documents,
+		func(i, j int) bool {
+
+			return order[
+				documents[i].DocumentKey,
+			] <
+				order[
+					documents[j].DocumentKey,
+				]
+		},
 	)
+
+	return documents, nil
 }
