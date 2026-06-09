@@ -88,7 +88,7 @@ func TestSearchEndpoint(
 		Title:      "CRM",
 		Text:       "CRM ecommerce",
 		Payload: []byte(`{
-			"sku":"vini"
+			"sku":"crm-commerce-test-payload-sku"
 		}`),
 	}
 
