@@ -40,3 +40,17 @@ func (s *Service) DeleteDocument(
 		externalID,
 	)
 }
+
+func (s *Service) Search(
+	ctx context.Context,
+	query string,
+	limit int,
+) ([]SearchResult, error) {
+
+	return Search(
+		ctx,
+		s.client,
+		query,
+		limit,
+	)
+}

@@ -19,6 +19,12 @@ type SearchIndexer interface {
 		namespace string,
 		externalID string,
 	) error
+
+	Search(
+		ctx context.Context,
+		query string,
+		limit int,
+	) ([]opensearch.SearchResult, error)
 }
 
 type Service struct {
@@ -112,4 +118,44 @@ func (s *Service) Delete(
 	}
 
 	return nil
+}
+
+func (s *Service) Search(
+	ctx context.Context,
+	query string,
+	limit int,
+	filters map[string]string,
+) ([]Document, error) {
+
+	results, err :=
+		s.indexer.Search(
+			ctx,
+			query,
+			limit,
+		)
+
+	if err != nil {
+		return nil, err
+	}
+
+	documentKeys :=
+		make(
+			[]string,
+			0,
+			len(results),
+		)
+
+	for _, result := range results {
+
+		documentKeys = append(
+			documentKeys,
+			result.DocumentKey,
+		)
+	}
+
+	return s.repository.Search(
+		ctx,
+		documentKeys,
+		filters,
+	)
 }

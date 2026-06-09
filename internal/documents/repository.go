@@ -167,3 +167,15 @@ func (r *Repository) DeleteByExternalIDs(
 
 	return err
 }
+
+func (r *Repository) Search(
+	ctx context.Context,
+	documentKeys []string,
+	filters map[string]string,
+) ([]Document, error) {
+
+	return r.FindByDocumentKeys(
+		ctx,
+		documentKeys,
+	)
+}
