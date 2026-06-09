@@ -50,5 +50,15 @@ func (s *Server) Router() *http.ServeMux {
 		),
 	)
 
+	router.Handle(
+		"POST /search",
+		middleware.AuthMiddleware(
+			s.apiKeyService,
+			http.HandlerFunc(
+				s.documentHandler.Search,
+			),
+		),
+	)
+
 	return router
 }

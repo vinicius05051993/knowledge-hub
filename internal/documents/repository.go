@@ -2,9 +2,15 @@ package documents
 
 import (
 	"context"
+	"regexp"
 
 	"github.com/jmoiron/sqlx"
 )
+
+var validFilterField =
+	regexp.MustCompile(
+		`^[a-zA-Z0-9_]+$`,
+	)
 
 type Repository struct {
 	db *sqlx.DB
@@ -174,8 +180,62 @@ func (r *Repository) Search(
 	filters map[string]string,
 ) ([]Document, error) {
 
-	return r.FindByDocumentKeys(
-		ctx,
+	if len(documentKeys) == 0 {
+		return []Document{}, nil
+	}
+
+	query, args, err := sqlx.In(
+		`
+		SELECT *
+		FROM documents
+		WHERE document_key IN (?)
+		`,
 		documentKeys,
 	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for field, value := range filters {
+
+		if !validFilterField.MatchString(
+			field,
+		) {
+			continue
+		}
+
+		query += `
+		AND JSON_UNQUOTE(
+			JSON_EXTRACT(
+				payload,
+				'$.` + field + `'
+			)
+		) = ?
+		`
+
+		args = append(
+			args,
+			value,
+		)
+	}
+
+	query = r.db.Rebind(
+		query,
+	)
+
+	var documents []Document
+
+	err = r.db.SelectContext(
+		ctx,
+		&documents,
+		query,
+		args...,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return documents, nil
 }
