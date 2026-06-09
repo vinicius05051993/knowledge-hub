@@ -143,6 +143,10 @@ func (s *Service) Search(
 			limit,
 		)
 
+	if len(results) == 0 {
+		return []Document{}, nil
+	}
+
 	if err != nil {
 		return nil, err
 	}

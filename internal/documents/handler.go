@@ -7,8 +7,28 @@ import (
 	"indexer/internal/auth"
 )
 
+type SearchService interface {
+	Search(
+		ctx context.Context,
+		query string,
+		limit int,
+		filters map[string]string,
+	) ([]Document, error)
+
+	Upsert(
+		ctx context.Context,
+		document *Document,
+	) error
+
+	Delete(
+		ctx context.Context,
+		namespace string,
+		externalIDs []string,
+	) error
+}
+
 type Handler struct {
-	service *Service
+	service SearchService
 }
 
 func NewHandler(

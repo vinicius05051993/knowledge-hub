@@ -23,16 +23,21 @@ func IndexDocument(
 		return err
 	}
 
+	path := fmt.Sprintf(
+		"%s/_doc/%s",
+		DocumentsIndex,
+		document.DocumentKey,
+	)
+
+	if document.Namespace == "test" {
+
+		path += "?refresh=true"
+	}
+
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodPut,
-		client.URL(
-			fmt.Sprintf(
-				"%s/_doc/%s?refresh=true",
-				DocumentsIndex,
-				document.DocumentKey,
-			),
-		),
+		client.URL(path),
 		bytes.NewBuffer(payload),
 	)
 
@@ -75,16 +80,21 @@ func DeleteDocument(
 			":" +
 			externalID
 
+	path := fmt.Sprintf(
+		"%s/_doc/%s",
+		DocumentsIndex,
+		documentKey,
+	)
+
+	if namespace == "test" {
+
+		path += "?refresh=true"
+	}
+
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodDelete,
-		client.URL(
-			fmt.Sprintf(
-				"%s/_doc/%s?refresh=true",
-				DocumentsIndex,
-				documentKey,
-			),
-		),
+		client.URL(path),
 		nil,
 	)
 

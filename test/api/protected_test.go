@@ -37,6 +37,7 @@ func TestProtectedInvalidAPIKey(
 		server.NewApp(
 			nil,
 			service,
+			nil,
 		)
 
 	router := app.Router()
@@ -95,6 +96,7 @@ func TestProtectedValidAPIKey(
 		server.NewApp(
 			nil,
 			service,
+			nil,
 		)
 
 	router := app.Router()

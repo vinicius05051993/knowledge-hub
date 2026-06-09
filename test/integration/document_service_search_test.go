@@ -28,6 +28,23 @@ func TestDocumentServiceSearch(
 	searchClient :=
 		opensearch.NewClient(cfg)
 
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"test",
+			"1",
+		)
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"test",
+			"2",
+		)
+	})
+
 	searchService :=
 		opensearch.NewService(
 			searchClient,
@@ -45,15 +62,15 @@ func TestDocumentServiceSearch(
 	document1 := &documents.Document{
 		Namespace:  "test",
 		ExternalID: "1",
-		Title:      "Magento 2.4",
-		Text:       "Magento ecommerce platform",
+		Title:      "Adobe 2.4",
+		Text:       "Adobe ecommerce platform",
 		Payload:    []byte(`{"id":1}`),
 	}
 
 	document2 := &documents.Document{
 		Namespace:  "test",
 		ExternalID: "2",
-		Title:      "Magento Commerce",
+		Title:      "Adobe Commerce",
 		Text:       "Adobe Commerce platform",
 		Payload:    []byte(`{"id":2}`),
 	}
@@ -79,7 +96,7 @@ func TestDocumentServiceSearch(
 	results, err :=
 		documentService.Search(
 			context.Background(),
-			"Magento",
+			"Adobe",
 			10,
 			nil,
 		)
