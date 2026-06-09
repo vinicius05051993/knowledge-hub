@@ -13,3 +13,7 @@ type UpsertDocumentRequest struct {
 
 	Payload map[string]interface{} `json:"payload"`
 }
+
+type DeleteDocumentsRequest struct {
+	ExternalIDs []string `json:"external_ids"`
+}

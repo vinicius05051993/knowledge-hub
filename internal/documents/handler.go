@@ -116,3 +116,63 @@ func (h *Handler) UpsertDocuments(
 		response,
 	)
 }
+
+func (h *Handler) DeleteDocuments(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+
+	authContext :=
+		auth.GetAuthContext(r)
+
+	if authContext == nil {
+
+		http.Error(
+			w,
+			"unauthorized",
+			http.StatusUnauthorized,
+		)
+
+		return
+	}
+
+	var request DeleteDocumentsRequest
+
+	err := json.NewDecoder(
+		r.Body,
+	).Decode(
+		&request,
+	)
+
+	if err != nil {
+
+		http.Error(
+			w,
+			"invalid request",
+			http.StatusBadRequest,
+		)
+
+		return
+	}
+
+	err = h.service.Delete(
+		r.Context(),
+		authContext.Namespace,
+		request.ExternalIDs,
+	)
+
+	if err != nil {
+
+		http.Error(
+			w,
+			err.Error(),
+			http.StatusInternalServerError,
+		)
+
+		return
+	}
+
+	w.WriteHeader(
+		http.StatusNoContent,
+	)
+}

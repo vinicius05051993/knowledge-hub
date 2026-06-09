@@ -8,9 +8,16 @@ import (
 )
 
 type SearchIndexer interface {
+
 	IndexDocument(
 		ctx context.Context,
 		document *opensearch.Document,
+	) error
+
+	DeleteDocument(
+		ctx context.Context,
+		namespace string,
+		externalID string,
 	) error
 }
 
@@ -64,6 +71,38 @@ func (s *Service) Upsert(
 
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (s *Service) Delete(
+	ctx context.Context,
+	namespace string,
+	externalIDs []string,
+) error {
+
+	err := s.repository.DeleteByExternalIDs(
+		ctx,
+		namespace,
+		externalIDs,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	for _, externalID := range externalIDs {
+
+		err = s.indexer.DeleteDocument(
+			ctx,
+			namespace,
+			externalID,
+		)
+
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

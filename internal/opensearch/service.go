@@ -26,3 +26,17 @@ func (s *Service) IndexDocument(
 		document,
 	)
 }
+
+func (s *Service) DeleteDocument(
+	ctx context.Context,
+	namespace string,
+	externalID string,
+) error {
+
+	return DeleteDocument(
+		ctx,
+		s.client,
+		namespace,
+		externalID,
+	)
+}

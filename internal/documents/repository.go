@@ -86,3 +86,45 @@ func (r *Repository) FindByExternalID(
 
 	return &document, nil
 }
+
+func (r *Repository) DeleteByExternalIDs(
+	ctx context.Context,
+	namespace string,
+	externalIDs []string,
+) error {
+
+	if len(externalIDs) == 0 {
+		return nil
+	}
+
+	query := `
+	DELETE FROM documents
+	WHERE namespace = ?
+	AND external_id IN (?
+	`
+
+	args := []any{
+		namespace,
+	}
+
+	for i := 1; i < len(externalIDs); i++ {
+		query += ",?"
+	}
+
+	query += ")"
+
+	for _, externalID := range externalIDs {
+		args = append(
+			args,
+			externalID,
+		)
+	}
+
+	_, err := r.db.ExecContext(
+		ctx,
+		query,
+		args...,
+	)
+
+	return err
+}

@@ -40,5 +40,15 @@ func (s *Server) Router() *http.ServeMux {
 		),
 	)
 
+	router.Handle(
+		"DELETE /documents",
+		middleware.AuthMiddleware(
+			s.apiKeyService,
+			http.HandlerFunc(
+				s.documentHandler.DeleteDocuments,
+			),
+		),
+	)
+
 	return router
 }
