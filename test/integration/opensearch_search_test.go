@@ -55,6 +55,7 @@ func TestSearchDocument(
 			context.Background(),
 			client,
 			"Magento",
+			0,
 			10,
 		)
 

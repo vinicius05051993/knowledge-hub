@@ -97,6 +97,7 @@ func TestDocumentServiceSearch(
 		documentService.Search(
 			context.Background(),
 			"Adobe",
+			0,
 			10,
 			nil,
 		)

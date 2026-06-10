@@ -118,6 +118,7 @@ func TestDocumentServiceUpsert(
 			context.Background(),
 			searchClient,
 			"Magento",
+			0,
 			10,
 		)
 

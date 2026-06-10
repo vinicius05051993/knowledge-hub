@@ -11,6 +11,7 @@ type SearchService interface {
 	Search(
 		ctx context.Context,
 		query string,
+		offset int,
 		limit int,
 		filters map[string]string,
 	) ([]Document, error)

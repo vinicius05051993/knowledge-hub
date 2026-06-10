@@ -24,6 +24,7 @@ type SearchIndexer interface {
 	Search(
 		ctx context.Context,
 		query string,
+		offset int,
 		limit int,
 	) ([]opensearch.SearchResult, error)
 }
@@ -124,6 +125,7 @@ func (s *Service) Delete(
 func (s *Service) Search(
 	ctx context.Context,
 	query string,
+	offset int,
 	limit int,
 	filters map[string]string,
 ) ([]Document, error) {
@@ -134,6 +136,8 @@ func (s *Service) Search(
 			ctx,
 			nil,
 			filters,
+			offset,
+			limit,
 		)
 	}
 
@@ -141,6 +145,7 @@ func (s *Service) Search(
 		s.indexer.Search(
 			ctx,
 			query,
+			offset,
 			limit,
 		)
 
@@ -182,6 +187,8 @@ func (s *Service) Search(
 			ctx,
 			documentKeys,
 			filters,
+			0,
+			0,
 		)
 
 	if err != nil {

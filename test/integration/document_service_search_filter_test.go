@@ -86,6 +86,7 @@ func TestDocumentServiceSearchWithFilters(
 		documentService.Search(
 			context.Background(),
 			"Magento",
+			0,
 			10,
 			map[string]string{
 				"sku": "123",

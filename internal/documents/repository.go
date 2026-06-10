@@ -178,6 +178,8 @@ func (r *Repository) Search(
 	ctx context.Context,
 	documentKeys []string,
 	filters map[string]string,
+	offset int,
+	limit int,
 ) ([]Document, error) {
 
 	query := `
@@ -233,6 +235,20 @@ func (r *Repository) Search(
 		args = append(
 			args,
 			value,
+		)
+	}
+
+	if len(documentKeys) == 0 {
+
+		query += `
+		LIMIT ?
+		OFFSET ?
+		`
+
+		args = append(
+			args,
+			limit,
+			offset,
 		)
 	}
 

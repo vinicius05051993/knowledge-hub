@@ -92,6 +92,7 @@ func TestDocumentServiceDelete(
 			context.Background(),
 			searchClient,
 			"Magento Delete",
+			0,
 			10,
 		)
 

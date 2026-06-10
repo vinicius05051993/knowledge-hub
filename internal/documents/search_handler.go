@@ -18,6 +18,21 @@ func (h *Handler) Search(
 		&request,
 	)
 
+	if request.Offset < 0 {
+
+		request.Offset = 0
+	}
+
+	if request.Limit <= 0 {
+
+		request.Limit = 100
+	}
+
+	if request.Limit > 100 {
+
+		request.Limit = 100
+	}
+
 	if err != nil {
 
 		http.Error(
@@ -43,6 +58,7 @@ func (h *Handler) Search(
 		h.service.Search(
 			r.Context(),
 			request.Query,
+			request.Offset,
 			request.Limit,
 			request.Filters,
 		)

@@ -29,10 +29,12 @@ func Search(
 	ctx context.Context,
 	client *Client,
 	query string,
+	offset int,
 	limit int,
 ) ([]SearchResult, error) {
 
 	body := map[string]interface{}{
+		"from": offset,
 		"size": limit,
 		"query": map[string]interface{}{
 			"multi_match": map[string]interface{}{

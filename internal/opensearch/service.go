@@ -44,6 +44,7 @@ func (s *Service) DeleteDocument(
 func (s *Service) Search(
 	ctx context.Context,
 	query string,
+	offset int,
 	limit int,
 ) ([]SearchResult, error) {
 
@@ -51,6 +52,7 @@ func (s *Service) Search(
 		ctx,
 		s.client,
 		query,
+		offset,
 		limit,
 	)
 }
