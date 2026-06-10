@@ -224,16 +224,20 @@ func (r *Repository) Search(
 		}
 
 		query += `
-		AND JSON_UNQUOTE(
-			JSON_EXTRACT(
-				payload,
-				'$.` + field + `'
-			)
-		) = ?
+		AND EXISTS (
+			SELECT 1
+			FROM document_filters f
+			WHERE
+				f.document_key =
+					documents.document_key
+			AND f.field_name = ?
+			AND f.field_value = ?
+		)
 		`
 
 		args = append(
 			args,
+			field,
 			value,
 		)
 	}

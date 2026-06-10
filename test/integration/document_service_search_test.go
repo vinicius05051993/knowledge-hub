@@ -6,6 +6,7 @@ import (
 
 	"indexer/internal/documents"
 	"indexer/internal/opensearch"
+	"indexer/internal/documentfilters"
 )
 
 func TestDocumentServiceSearch(
@@ -53,9 +54,15 @@ func TestDocumentServiceSearch(
 	documentRepository :=
 		documents.NewRepository(db)
 
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
 	documentService :=
 		documents.NewService(
 			documentRepository,
+			filterRepository,
 			searchService,
 		)
 

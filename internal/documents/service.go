@@ -2,9 +2,11 @@ package documents
 
 import (
 	"context"
+	"encoding/json"
 	"sort"
 	"time"
 
+	"indexer/internal/documentfilters"
 	"indexer/internal/opensearch"
 )
 
@@ -30,18 +32,21 @@ type SearchIndexer interface {
 }
 
 type Service struct {
-	repository *Repository
-	indexer    SearchIndexer
+	repository       *Repository
+	filterRepository *documentfilters.Repository
+	indexer          SearchIndexer
 }
 
 func NewService(
 	repository *Repository,
+	filterRepository *documentfilters.Repository,
 	indexer SearchIndexer,
 ) *Service {
 
 	return &Service{
-		repository: repository,
-		indexer:    indexer,
+		repository:       repository,
+		filterRepository: filterRepository,
+		indexer:          indexer,
 	}
 }
 
@@ -66,6 +71,43 @@ func (s *Service) Upsert(
 	err := s.repository.Upsert(
 		ctx,
 		document,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	var payload map[string]any
+
+	err = json.Unmarshal(
+		document.Payload,
+		&payload,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	filters :=
+		make(
+			map[string]string,
+		)
+
+	for key, value := range payload {
+
+		str, ok := value.(string)
+
+		if !ok {
+			continue
+		}
+
+		filters[key] = str
+	}
+
+	err = s.filterRepository.Replace(
+		ctx,
+		document.DocumentKey,
+		filters,
 	)
 
 	if err != nil {
@@ -108,6 +150,20 @@ func (s *Service) Delete(
 
 	for _, externalID := range externalIDs {
 
+		documentKey :=
+			namespace +
+				":" +
+				externalID
+
+		err = s.filterRepository.DeleteByDocumentKey(
+			ctx,
+			documentKey,
+		)
+
+		if err != nil {
+			return err
+		}
+
 		err = s.indexer.DeleteDocument(
 			ctx,
 			namespace,
@@ -144,11 +200,12 @@ func (s *Service) Search(
 			return nil, err
 		}
 
-		response := make(
-			[]SearchDocument,
-			0,
-			len(documents),
-		)
+		response :=
+			make(
+				[]SearchDocument,
+				0,
+				len(documents),
+			)
 
 		for _, document := range documents {
 

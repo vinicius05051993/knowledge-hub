@@ -9,6 +9,7 @@ import (
 	"indexer/internal/database"
 	"indexer/internal/documents"
 	"indexer/internal/opensearch"
+	"indexer/internal/documentfilters"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -90,9 +91,15 @@ func createDocumentHandler(
 	documentRepository :=
 		documents.NewRepository(db)
 
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
 	documentService :=
 		documents.NewService(
 			documentRepository,
+			filterRepository,
 			searchService,
 		)
 
