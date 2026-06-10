@@ -14,7 +14,7 @@ import (
 	"indexer/internal/server"
 )
 
-func TestSearchEndpointHighlight(
+func TestSearchEndpointFuzzy(
 	t *testing.T,
 ) {
 
@@ -40,7 +40,7 @@ func TestSearchEndpointHighlight(
 			context.Background(),
 			searchClient,
 			"test",
-			"highlight-test",
+			"fuzzy-test",
 		)
 	})
 
@@ -75,7 +75,7 @@ func TestSearchEndpointHighlight(
 		apiKeyService.Create(
 			t.Context(),
 			"test",
-			"Highlight Test",
+			"Fuzzy Test",
 		)
 
 	if err != nil {
@@ -86,11 +86,11 @@ func TestSearchEndpointHighlight(
 		t.Context(),
 		&documents.Document{
 			Namespace:  "test",
-			ExternalID: "highlight-test",
-			Title:      "Magento 2.4",
-			Text:       "Magento ecommerce platform",
+			ExternalID: "fuzzy-test",
+			Title:      "Vinicius Henrique",
+			Text:       "Vinicius Henrique platform",
 			Payload: []byte(`{
-				"sku":"highlight-test"
+				"sku":"fuzzy-test"
 			}`),
 		},
 	)
@@ -112,7 +112,7 @@ func TestSearchEndpointHighlight(
 		http.MethodPost,
 		"/search",
 		strings.NewReader(`{
-			"query":"Magento"
+			"query":"vinixcius"
 		}`),
 	)
 
@@ -154,46 +154,20 @@ func TestSearchEndpointHighlight(
 		t.Fatal(err)
 	}
 
-	if len(response) == 0 {
-
-		t.Fatal(
-			"expected at least one result",
-		)
-	}
-
-	highlights :=
-		response[0].Highlights
-
-	if highlights == nil {
-
-		t.Fatal(
-			"expected highlights",
-		)
-	}
-
-	titleHighlight :=
-		highlights["title"]
-
-	textHighlight :=
-		highlights["text"]
-
-	if titleHighlight == "" &&
-		textHighlight == "" {
-
-		t.Fatal(
-			"expected title or text highlight",
-		)
-	}
-
-	if !strings.Contains(
-		titleHighlight+textHighlight,
-		"<mark>Magento</mark>",
-	) {
+	if len(response) != 1 {
 
 		t.Fatalf(
-			"expected highlight containing <mark>Magento</mark>, got title=%q text=%q",
-			titleHighlight,
-			textHighlight,
+			"expected 1 result got %d",
+			len(response),
+		)
+	}
+
+	if response[0].ExternalID !=
+		"fuzzy-test" {
+
+		t.Fatalf(
+			"unexpected document returned: %s",
+			response[0].ExternalID,
 		)
 	}
 }

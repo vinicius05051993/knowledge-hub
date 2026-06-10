@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 type searchResponse struct {
@@ -35,19 +36,31 @@ func Search(
 	limit int,
 ) ([]SearchResult, error) {
 
+	multiMatch := map[string]interface{}{
+		"query": query,
+		"fields": []string{
+			"title^2",
+			"text",
+		},
+	}
+
+	if len(query) >= 5 &&
+		!strings.Contains(
+			query,
+			" ",
+		) {
+
+		multiMatch["fuzziness"] =
+			"AUTO"
+	}
+
 	body := map[string]interface{}{
 		"from": offset,
 
 		"size": limit,
 
 		"query": map[string]interface{}{
-			"multi_match": map[string]interface{}{
-				"query": query,
-				"fields": []string{
-					"title^2",
-					"text",
-				},
-			},
+			"multi_match": multiMatch,
 		},
 
 		"highlight": map[string]interface{}{
@@ -142,7 +155,7 @@ func Search(
 
 				Score: hit.Score,
 
-				Highlights:  hit.Highlight,
+				Highlights: hit.Highlight,
 			},
 		)
 	}

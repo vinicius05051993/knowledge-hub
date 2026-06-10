@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -32,6 +33,30 @@ func TestSearchEndpointPagination(
 
 	searchClient :=
 		opensearch.NewClient(cfg)
+
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"test",
+			"page-1",
+		)
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"test",
+			"page-2",
+		)
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"test",
+			"page-3",
+		)
+	})
 
 	searchService :=
 		opensearch.NewService(
