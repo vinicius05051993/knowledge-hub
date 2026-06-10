@@ -56,3 +56,15 @@ func (s *Service) Search(
 		limit,
 	)
 }
+
+func (s *Service) DeleteDocuments(
+	ctx context.Context,
+	documentKeys []string,
+) error {
+
+	return DeleteDocuments(
+		ctx,
+		s.client,
+		documentKeys,
+	)
+}

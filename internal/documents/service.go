@@ -17,11 +17,10 @@ type SearchIndexer interface {
 		document *opensearch.Document,
 	) error
 
-	DeleteDocument(
-		ctx context.Context,
-		namespace string,
-		externalID string,
-	) error
+	DeleteDocuments(
+        ctx context.Context,
+        documentKeys []string,
+    ) error
 
 	Search(
 		ctx context.Context,
@@ -148,31 +147,37 @@ func (s *Service) Delete(
 		return err
 	}
 
+	documentKeys :=
+		make(
+			[]string,
+			0,
+			len(externalIDs),
+		)
+
 	for _, externalID := range externalIDs {
 
-		documentKey :=
-			namespace +
-				":" +
-				externalID
-
-		err = s.filterRepository.DeleteByDocumentKey(
-			ctx,
-			documentKey,
+		documentKeys = append(
+			documentKeys,
+			namespace+":"+externalID,
 		)
+	}
 
-		if err != nil {
-			return err
-		}
+	err = s.filterRepository.DeleteByDocumentKeys(
+		ctx,
+		documentKeys,
+	)
 
-		err = s.indexer.DeleteDocument(
-			ctx,
-			namespace,
-			externalID,
-		)
+	if err != nil {
+		return err
+	}
 
-		if err != nil {
-			return err
-		}
+	err = s.indexer.DeleteDocuments(
+		ctx,
+		documentKeys,
+	)
+
+	if err != nil {
+		return err
 	}
 
 	return nil

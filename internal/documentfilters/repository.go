@@ -112,3 +112,36 @@ func (r *Repository) DeleteByDocumentKey(
 
 	return err
 }
+
+func (r *Repository) DeleteByDocumentKeys(
+    ctx context.Context,
+    documentKeys []string,
+) error {
+
+    if len(documentKeys) == 0 {
+        return nil
+    }
+
+    query, args, err := sqlx.In(
+        `
+        DELETE
+        FROM document_filters
+        WHERE document_key IN (?)
+        `,
+        documentKeys,
+    )
+
+    if err != nil {
+        return err
+    }
+
+    query = r.db.Rebind(query)
+
+    _, err = r.db.ExecContext(
+        ctx,
+        query,
+        args...,
+    )
+
+    return err
+}
