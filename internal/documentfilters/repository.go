@@ -2,6 +2,7 @@ package documentfilters
 
 import (
 	"context"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -39,28 +40,56 @@ func (r *Repository) Replace(
 		return err
 	}
 
+	if len(filters) == 0 {
+		return nil
+	}
+
+	values := make(
+		[]string,
+		0,
+		len(filters),
+	)
+
+	args := make(
+		[]any,
+		0,
+		len(filters)*3,
+	)
+
 	for field, value := range filters {
 
-		_, err = r.db.ExecContext(
-			ctx,
-			`
-			INSERT INTO document_filters (
-				document_key,
-				field_name,
-				field_value
-			)
-			VALUES (
-				?,?,?
-			)
-			`,
+		values = append(
+			values,
+			"(?,?,?)",
+		)
+
+		args = append(
+			args,
 			documentKey,
 			field,
 			value,
 		)
+	}
 
-		if err != nil {
-			return err
-		}
+	query := `
+	INSERT INTO document_filters (
+		document_key,
+		field_name,
+		field_value
+	)
+	VALUES ` + strings.Join(
+		values,
+		",",
+	)
+
+	_, err = r.db.ExecContext(
+		ctx,
+		query,
+		args...,
+	)
+
+	if err != nil {
+		return err
 	}
 
 	return nil
