@@ -20,4 +20,6 @@ type SearchResult struct {
 	ExternalID string
 
 	Score float64
+
+	Highlights map[string][]string
 }

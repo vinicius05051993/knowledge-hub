@@ -14,6 +14,8 @@ type searchResponse struct {
 		Hits []struct {
 			Score float64 `json:"_score"`
 
+			Highlight map[string][]string `json:"highlight"`
+
 			Source struct {
 				DocumentKey string `json:"document_key"`
 
@@ -35,7 +37,9 @@ func Search(
 
 	body := map[string]interface{}{
 		"from": offset,
+
 		"size": limit,
+
 		"query": map[string]interface{}{
 			"multi_match": map[string]interface{}{
 				"query": query,
@@ -43,6 +47,21 @@ func Search(
 					"title^2",
 					"text",
 				},
+			},
+		},
+
+		"highlight": map[string]interface{}{
+			"pre_tags": []string{
+				"<mark>",
+			},
+
+			"post_tags": []string{
+				"</mark>",
+			},
+
+			"fields": map[string]interface{}{
+				"title": map[string]interface{}{},
+				"text":  map[string]interface{}{},
 			},
 		},
 	}
@@ -122,6 +141,8 @@ func Search(
 				ExternalID: hit.Source.ExternalID,
 
 				Score: hit.Score,
+
+				Highlights:  hit.Highlight,
 			},
 		)
 	}

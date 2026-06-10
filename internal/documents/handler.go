@@ -14,7 +14,7 @@ type SearchService interface {
 		offset int,
 		limit int,
 		filters map[string]string,
-	) ([]Document, error)
+	) ([]SearchDocument, error)
 
 	Upsert(
 		ctx context.Context,

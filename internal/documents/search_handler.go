@@ -97,6 +97,8 @@ func (h *Handler) Search(
 				Payload: json.RawMessage(
 					document.Payload,
 				),
+
+				Highlights: document.Highlights,
 			},
 		)
 	}

@@ -128,17 +128,39 @@ func (s *Service) Search(
 	offset int,
 	limit int,
 	filters map[string]string,
-) ([]Document, error) {
+) ([]SearchDocument, error) {
 
 	if query == "" {
 
-		return s.repository.Search(
+		documents, err := s.repository.Search(
 			ctx,
 			nil,
 			filters,
 			offset,
 			limit,
 		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		response := make(
+			[]SearchDocument,
+			0,
+			len(documents),
+		)
+
+		for _, document := range documents {
+
+			response = append(
+				response,
+				SearchDocument{
+					Document: document,
+				},
+			)
+		}
+
+		return response, nil
 	}
 
 	results, err :=
@@ -154,7 +176,7 @@ func (s *Service) Search(
 	}
 
 	if len(results) == 0 {
-		return []Document{}, nil
+		return []SearchDocument{}, nil
 	}
 
 	documentKeys :=
@@ -170,7 +192,32 @@ func (s *Service) Search(
 			len(results),
 		)
 
+	highlights :=
+		make(
+			map[string]map[string]string,
+		)
+
 	for i, result := range results {
+
+		normalizedHighlights :=
+			make(
+				map[string]string,
+			)
+
+		for field, values :=
+			range result.Highlights {
+
+			if len(values) == 0 {
+				continue
+			}
+
+			normalizedHighlights[field] =
+				values[0]
+		}
+
+		highlights[
+			result.DocumentKey,
+		] = normalizedHighlights
 
 		documentKeys = append(
 			documentKeys,
@@ -208,5 +255,26 @@ func (s *Service) Search(
 		},
 	)
 
-	return documents, nil
+	response :=
+		make(
+			[]SearchDocument,
+			0,
+			len(documents),
+		)
+
+	for _, document := range documents {
+
+		response = append(
+			response,
+			SearchDocument{
+				Document: document,
+
+				Highlights: highlights[
+					document.DocumentKey,
+				],
+			},
+		)
+	}
+
+	return response, nil
 }
