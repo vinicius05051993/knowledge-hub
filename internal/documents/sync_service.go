@@ -119,18 +119,36 @@ func (s *SyncService) ProcessPendingDeletes(
 		return err
 	}
 
-	for _, document := range documents {
+	if len(documents) == 0 {
+		return nil
+	}
 
-		err = s.indexer.DeleteDocuments(
-			ctx,
-			[]string{
-				document.DocumentKey,
-			},
+	documentKeys :=
+		make(
+			[]string,
+			0,
+			len(documents),
 		)
 
-		if err != nil {
-			continue
-		}
+	for _, document := range documents {
+
+		documentKeys =
+			append(
+				documentKeys,
+				document.DocumentKey,
+			)
+	}
+
+	err = s.indexer.DeleteDocuments(
+		ctx,
+		documentKeys,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	for _, document := range documents {
 
 		err = s.repository.DeleteByDocumentKey(
 			ctx,
