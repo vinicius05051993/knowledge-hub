@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"indexer/internal/apikeys"
+	"indexer/internal/documentfilters"
 	"indexer/internal/documents"
 	"indexer/internal/opensearch"
 	"indexer/internal/server"
-	"indexer/internal/documentfilters"
 )
 
 func TestSearchEndpointHighlight(
@@ -23,27 +23,18 @@ func TestSearchEndpointHighlight(
 
 	db := createDB(t)
 
-	defer db.Close()
-
-	cleanupTestData(
-		t,
-		db,
-	)
-
 	cfg := createTestConfig()
 
 	searchClient :=
 		opensearch.NewClient(cfg)
 
-	t.Cleanup(func() {
+	apiKeyRepository :=
+		apikeys.NewRepository(db)
 
-		_ = opensearch.DeleteDocument(
-			context.Background(),
-			searchClient,
-			"test",
-			"highlight-test",
+	apiKeyService :=
+		apikeys.NewService(
+			apiKeyRepository,
 		)
-	})
 
 	searchService :=
 		opensearch.NewService(
@@ -53,7 +44,6 @@ func TestSearchEndpointHighlight(
 	documentRepository :=
 		documents.NewRepository(db)
 
-		
 	filterRepository :=
 		documentfilters.NewRepository(
 			db,
@@ -66,24 +56,45 @@ func TestSearchEndpointHighlight(
 			searchService,
 		)
 
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"highlight-test",
+			"highlight-test",
+		)
+
+		_ = filterRepository.DeleteByDocumentKeys(
+			context.Background(),
+			[]string{
+				"highlight-test:highlight-test",
+			},
+		)
+
+		_ = documentService.DeleteByNamespace(
+			context.Background(),
+			"highlight-test",
+		)
+
+		_ = apiKeyService.DeleteByNamespace(
+			context.Background(),
+			"highlight-test",
+		)
+
+		_ = db.Close()
+	})
+
 	documentHandler :=
 		documents.NewHandler(
 			documentService,
 		)
 
-	apiKeyRepository :=
-		apikeys.NewRepository(db)
-
-	apiKeyService :=
-		apikeys.NewService(
-			apiKeyRepository,
-		)
-
 	apiKey, err :=
 		apiKeyService.Create(
 			t.Context(),
-			"test",
 			"Highlight Test",
+			"highlight-test",
 		)
 
 	if err != nil {
@@ -93,7 +104,7 @@ func TestSearchEndpointHighlight(
 	err = documentService.Upsert(
 		t.Context(),
 		&documents.Document{
-			Namespace:  "test",
+			Namespace:  "highlight-test",
 			ExternalID: "highlight-test",
 			Title:      "Magento 2.4",
 			Text:       "Magento ecommerce platform",

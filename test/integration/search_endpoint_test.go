@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"indexer/internal/apikeys"
+	"indexer/internal/documentfilters"
 	"indexer/internal/documents"
 	"indexer/internal/opensearch"
 	"indexer/internal/server"
-	"indexer/internal/documentfilters"
 )
 
 func TestSearchEndpoint(
@@ -23,27 +23,18 @@ func TestSearchEndpoint(
 
 	db := createDB(t)
 
-	defer db.Close()
-
-	cleanupTestData(
-		t,
-		db,
-	)
-
 	cfg := createTestConfig()
 
 	searchClient :=
 		opensearch.NewClient(cfg)
 
-	t.Cleanup(func() {
+	apiKeyRepository :=
+		apikeys.NewRepository(db)
 
-		_ = opensearch.DeleteDocument(
-			context.Background(),
-			searchClient,
-			"test",
-			"666",
+	apiKeyService :=
+		apikeys.NewService(
+			apiKeyRepository,
 		)
-	})
 
 	searchService :=
 		opensearch.NewService(
@@ -53,7 +44,6 @@ func TestSearchEndpoint(
 	documentRepository :=
 		documents.NewRepository(db)
 
-	
 	filterRepository :=
 		documentfilters.NewRepository(
 			db,
@@ -66,24 +56,45 @@ func TestSearchEndpoint(
 			searchService,
 		)
 
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"search2-test",
+			"666",
+		)
+
+		_ = filterRepository.DeleteByDocumentKeys(
+			context.Background(),
+			[]string{
+				"search2-test:666",
+			},
+		)
+
+		_ = documentService.DeleteByNamespace(
+			context.Background(),
+			"search2-test",
+		)
+
+		_ = apiKeyService.DeleteByNamespace(
+			context.Background(),
+			"search2-test",
+		)
+
+		_ = db.Close()
+	})
+
 	documentHandler :=
 		documents.NewHandler(
 			documentService,
 		)
 
-	apiKeyRepository :=
-		apikeys.NewRepository(db)
-
-	apiKeyService :=
-		apikeys.NewService(
-			apiKeyRepository,
-		)
-
 	apiKey, err :=
 		apiKeyService.Create(
 			t.Context(),
-			"test",
 			"Search Test",
+			"search2-test",
 		)
 
 	if err != nil {
@@ -91,7 +102,7 @@ func TestSearchEndpoint(
 	}
 
 	document := &documents.Document{
-		Namespace:  "test",
+		Namespace:  "search2-test",
 		ExternalID: "666",
 		Title:      "CRM",
 		Text:       "CRM ecommerce",

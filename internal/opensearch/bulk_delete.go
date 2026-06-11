@@ -28,7 +28,7 @@ func DeleteDocuments(
 			":",
 		)
 
-	if found && namespace == "test" {
+	if found && strings.Contains(namespace,"test") {
 		path += "?refresh=true"
 	}
 

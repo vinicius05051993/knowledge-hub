@@ -17,7 +17,7 @@ CREATE TABLE api_keys (
         api_key_hash
     ),
 
-    KEY idx_namespace (
+    UNIQUE KEY uk_namespace (
         namespace
     )
 );

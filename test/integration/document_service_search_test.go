@@ -17,13 +17,6 @@ func TestDocumentServiceSearch(
 
 	db := createDB(t)
 
-	defer db.Close()
-
-	cleanupTestData(
-		t,
-		db,
-	)
-
 	cfg := createTestConfig()
 
 	searchClient :=
@@ -44,6 +37,8 @@ func TestDocumentServiceSearch(
 			"test",
 			"2",
 		)
+
+		_ = db.Close()
 	})
 
 	searchService :=

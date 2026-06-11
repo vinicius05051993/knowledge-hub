@@ -19,11 +19,6 @@ func TestDocumentServiceDelete(
 
 	defer db.Close()
 
-	cleanupTestData(
-		t,
-		db,
-	)
-
 	cfg := createTestConfig()
 
 	searchClient :=

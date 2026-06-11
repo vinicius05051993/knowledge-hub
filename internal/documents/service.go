@@ -49,6 +49,17 @@ func NewService(
 	}
 }
 
+func (s *Service) DeleteByNamespace(
+	ctx context.Context,
+	namespace string,
+) error {
+
+	return s.repository.DeleteByNamespace(
+		ctx,
+		namespace,
+	)
+}
+
 func (s *Service) Upsert(
 	ctx context.Context,
 	document *Document,

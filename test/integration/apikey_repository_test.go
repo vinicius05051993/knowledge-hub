@@ -4,7 +4,9 @@ import (
 	"context"
 	"testing"
 	"time"
+
 	"github.com/google/uuid"
+
 	"indexer/internal/apikeys"
 )
 
@@ -14,23 +16,33 @@ func TestAPIKeyRepositoryCreate(
 
 	db := createDB(t)
 
-	defer db.Close()
-
-	cleanupTestData(
-		t,
-		db,
-	)
+	namespace :=
+		"test"
 
 	repository :=
 		apikeys.NewRepository(db)
 
+	t.Cleanup(func() {
+
+		_ = repository.DeleteByNamespace(
+			context.Background(),
+			namespace,
+		)
+
+		_ = db.Close()
+	})
+
 	key := &apikeys.APIKey{
-		Name:        "Test",
-		Namespace:   "test",
-		APIKeyHash:  uuid.NewString(),
-		Permissions: "[]",
-		Active:      true,
-		CreatedAt:   time.Now(),
+		Name:       "Test",
+		Namespace:  namespace,
+		APIKeyHash: uuid.NewString(),
+		Permissions: `[
+			"DOCUMENT_UPSERT",
+			"DOCUMENT_DELETE",
+			"DOCUMENT_SEARCH"
+		]`,
+		Active:    true,
+		CreatedAt: time.Now(),
 	}
 
 	err := repository.Create(

@@ -17,33 +17,10 @@ func TestDocumentFiltersRepository(
 
 	db := createDB(t)
 
-	defer db.Close()
-
-	cleanupTestData(
-		t,
-		db,
-	)
-
 	cfg := createTestConfig()
 
 	searchClient :=
 		opensearch.NewClient(cfg)
-
-
-	t.Cleanup(func() {
-
-		_ = opensearch.DeleteDocument(
-			context.Background(),
-			searchClient,
-			"test",
-			"filters-test",
-		)
-	})
-
-	searchService :=
-		opensearch.NewService(
-			searchClient,
-		)
 
 	documentRepository :=
 		documents.NewRepository(db)
@@ -53,6 +30,11 @@ func TestDocumentFiltersRepository(
 			db,
 		)
 
+	searchService :=
+		opensearch.NewService(
+			searchClient,
+		)
+
 	documentService :=
 		documents.NewService(
 			documentRepository,
@@ -60,10 +42,36 @@ func TestDocumentFiltersRepository(
 			searchService,
 		)
 
+	namespace := "test"
+
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			namespace,
+			"filters-test",
+		)
+
+		_ = filterRepository.DeleteByDocumentKeys(
+			context.Background(),
+			[]string{
+				"test:filters-test",
+			},
+		)
+
+		_ = documentService.DeleteByNamespace(
+			context.Background(),
+			namespace,
+		)
+
+		_ = db.Close()
+	})
+
 	err := documentService.Upsert(
 		context.Background(),
 		&documents.Document{
-			Namespace:  "test",
+			Namespace:  namespace,
 			ExternalID: "filters-test",
 			Title:      "Produto",
 			Text:       "Produto de teste",

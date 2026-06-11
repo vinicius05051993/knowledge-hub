@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"indexer/internal/apikeys"
+	"indexer/internal/documentfilters"
 	"indexer/internal/documents"
 	"indexer/internal/opensearch"
 	"indexer/internal/server"
-	"indexer/internal/documentfilters"
 )
 
 func TestSearchEndpointWithoutQuery(
@@ -23,27 +23,18 @@ func TestSearchEndpointWithoutQuery(
 
 	db := createDB(t)
 
-	defer db.Close()
-
-	cleanupTestData(
-		t,
-		db,
-	)
-
 	cfg := createTestConfig()
 
 	searchClient :=
 		opensearch.NewClient(cfg)
 
-	t.Cleanup(func() {
+	apiKeyRepository :=
+		apikeys.NewRepository(db)
 
-		_ = opensearch.DeleteDocument(
-			context.Background(),
-			searchClient,
-			"test",
-			"only-filter",
+	apiKeyService :=
+		apikeys.NewService(
+			apiKeyRepository,
 		)
-	})
 
 	searchService :=
 		opensearch.NewService(
@@ -53,7 +44,6 @@ func TestSearchEndpointWithoutQuery(
 	documentRepository :=
 		documents.NewRepository(db)
 
-		
 	filterRepository :=
 		documentfilters.NewRepository(
 			db,
@@ -66,24 +56,45 @@ func TestSearchEndpointWithoutQuery(
 			searchService,
 		)
 
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"search3-test",
+			"only-filter",
+		)
+
+		_ = filterRepository.DeleteByDocumentKeys(
+			context.Background(),
+			[]string{
+				"search3-test:only-filter",
+			},
+		)
+
+		_ = documentService.DeleteByNamespace(
+			context.Background(),
+			"search3-test",
+		)
+
+		_ = apiKeyService.DeleteByNamespace(
+			context.Background(),
+			"search3-test",
+		)
+
+		_ = db.Close()
+	})
+
 	documentHandler :=
 		documents.NewHandler(
 			documentService,
 		)
 
-	apiKeyRepository :=
-		apikeys.NewRepository(db)
-
-	apiKeyService :=
-		apikeys.NewService(
-			apiKeyRepository,
-		)
-
 	apiKey, err :=
 		apiKeyService.Create(
 			t.Context(),
-			"test",
 			"Search Test",
+			"search3-test",
 		)
 
 	if err != nil {
@@ -93,7 +104,7 @@ func TestSearchEndpointWithoutQuery(
 	err = documentService.Upsert(
 		t.Context(),
 		&documents.Document{
-			Namespace:  "test",
+			Namespace:  "search3-test",
 			ExternalID: "only-filter",
 			Title:      "Outro título",
 			Text:       "Outro texto",
@@ -141,6 +152,15 @@ func TestSearchEndpointWithoutQuery(
 		recorder,
 		req,
 	)
+
+	if recorder.Code !=
+		http.StatusOK {
+
+		t.Fatalf(
+			"expected 200 got %d",
+			recorder.Code,
+		)
+	}
 
 	var response []documents.SearchResponse
 

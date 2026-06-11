@@ -16,11 +16,6 @@ func TestFindByDocumentKeys(
 
 	defer db.Close()
 
-	cleanupTestData(
-		t,
-		db,
-	)
-
 	repository :=
 		documents.NewRepository(db)
 

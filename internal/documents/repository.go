@@ -137,6 +137,24 @@ func (r *Repository) FindByDocumentKeys(
 	return documents, nil
 }
 
+func (r *Repository) DeleteByNamespace(
+	ctx context.Context,
+	namespace string,
+) error {
+
+	_, err := r.db.ExecContext(
+		ctx,
+		`
+		DELETE
+		FROM documents
+		WHERE namespace = ?
+		`,
+		namespace,
+	)
+
+	return err
+}
+
 func (r *Repository) DeleteByExternalIDs(
 	ctx context.Context,
 	namespace string,

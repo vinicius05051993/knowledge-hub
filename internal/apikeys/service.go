@@ -18,6 +18,11 @@ type RepositoryInterface interface {
 		ctx context.Context,
 		apiKey *APIKey,
 	) error
+
+	DeleteByNamespace(
+		ctx context.Context,
+		namespace string,
+	) error
 }
 
 type Service struct {
@@ -100,4 +105,15 @@ func (s *Service) Create(
 	}
 
 	return apiKey, nil
+}
+
+func (s *Service) DeleteByNamespace(
+	ctx context.Context,
+	namespace string,
+) error {
+
+	return s.repository.DeleteByNamespace(
+		ctx,
+		namespace,
+	)
 }

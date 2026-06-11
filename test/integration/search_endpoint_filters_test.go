@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"indexer/internal/apikeys"
+	"indexer/internal/documentfilters"
 	"indexer/internal/documents"
 	"indexer/internal/opensearch"
 	"indexer/internal/server"
-	"indexer/internal/documentfilters"
 )
 
 func TestSearchEndpointWithFilters(
@@ -23,34 +23,18 @@ func TestSearchEndpointWithFilters(
 
 	db := createDB(t)
 
-	defer db.Close()
-
-	cleanupTestData(
-		t,
-		db,
-	)
-
 	cfg := createTestConfig()
 
 	searchClient :=
 		opensearch.NewClient(cfg)
 
-	t.Cleanup(func() {
+	apiKeyRepository :=
+		apikeys.NewRepository(db)
 
-		_ = opensearch.DeleteDocument(
-			context.Background(),
-			searchClient,
-			"test",
-			"filter-1",
+	apiKeyService :=
+		apikeys.NewService(
+			apiKeyRepository,
 		)
-
-		_ = opensearch.DeleteDocument(
-			context.Background(),
-			searchClient,
-			"test",
-			"filter-2",
-		)
-	})
 
 	searchService :=
 		opensearch.NewService(
@@ -60,7 +44,6 @@ func TestSearchEndpointWithFilters(
 	documentRepository :=
 		documents.NewRepository(db)
 
-		
 	filterRepository :=
 		documentfilters.NewRepository(
 			db,
@@ -73,24 +56,48 @@ func TestSearchEndpointWithFilters(
 			searchService,
 		)
 
-	documentHandler :=
-		documents.NewHandler(
-			documentService,
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"search-test",
+			"filter-1",
 		)
 
-	apiKeyRepository :=
-		apikeys.NewRepository(db)
-
-	apiKeyService :=
-		apikeys.NewService(
-			apiKeyRepository,
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"search-test",
+			"filter-2",
 		)
+
+		_ = filterRepository.DeleteByDocumentKeys(
+			context.Background(),
+			[]string{
+				"search-test:filter-1",
+				"search-test:filter-2",
+			},
+		)
+
+		_ = documentService.DeleteByNamespace(
+			context.Background(),
+			"search-test",
+		)
+
+		_ = apiKeyService.DeleteByNamespace(
+			context.Background(),
+			"search-test",
+		)
+
+		_ = db.Close()
+	})
 
 	apiKey, err :=
 		apiKeyService.Create(
 			t.Context(),
-			"test",
 			"Search Test",
+			"search-test",
 		)
 
 	if err != nil {
@@ -100,7 +107,7 @@ func TestSearchEndpointWithFilters(
 	err = documentService.Upsert(
 		t.Context(),
 		&documents.Document{
-			Namespace:  "test",
+			Namespace:  "search-test",
 			ExternalID: "filter-1",
 			Title:      "Magento",
 			Text:       "Magento ecommerce",
@@ -115,7 +122,7 @@ func TestSearchEndpointWithFilters(
 	err = documentService.Upsert(
 		t.Context(),
 		&documents.Document{
-			Namespace:  "test",
+			Namespace:  "search-test",
 			ExternalID: "filter-2",
 			Title:      "Magento",
 			Text:       "Magento ecommerce",
@@ -126,6 +133,11 @@ func TestSearchEndpointWithFilters(
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	documentHandler :=
+		documents.NewHandler(
+			documentService,
+		)
 
 	app :=
 		server.NewApp(
@@ -164,6 +176,15 @@ func TestSearchEndpointWithFilters(
 		recorder,
 		req,
 	)
+
+	if recorder.Code !=
+		http.StatusOK {
+
+		t.Fatalf(
+			"expected 200 got %d",
+			recorder.Code,
+		)
+	}
 
 	var response []documents.SearchResponse
 

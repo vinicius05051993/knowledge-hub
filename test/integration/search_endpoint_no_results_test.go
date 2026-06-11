@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"context"
 
 	"indexer/internal/apikeys"
 	"indexer/internal/documents"
@@ -22,17 +23,28 @@ func TestSearchEndpointNoResults(
 
 	db := createDB(t)
 
-	defer db.Close()
-
-	cleanupTestData(
-		t,
-		db,
-	)
-
 	cfg := createTestConfig()
 
 	searchClient :=
 		opensearch.NewClient(cfg)
+
+	apiKeyRepository :=
+		apikeys.NewRepository(db)
+
+	apiKeyService :=
+		apikeys.NewService(
+			apiKeyRepository,
+		)
+
+	t.Cleanup(func() {
+
+		_ = apiKeyService.DeleteByNamespace(
+			context.Background(),
+			"search4-test",
+		)
+
+		_ = db.Close()
+	})
 
 	searchService :=
 		opensearch.NewService(
@@ -60,19 +72,11 @@ func TestSearchEndpointNoResults(
 			documentService,
 		)
 
-	apiKeyRepository :=
-		apikeys.NewRepository(db)
-
-	apiKeyService :=
-		apikeys.NewService(
-			apiKeyRepository,
-		)
-
 	apiKey, err :=
 		apiKeyService.Create(
 			t.Context(),
-			"test",
 			"Search Test",
+			"search4-test",
 		)
 
 	if err != nil {

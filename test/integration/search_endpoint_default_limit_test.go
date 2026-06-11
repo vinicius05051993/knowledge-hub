@@ -5,7 +5,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"context"
 
+	"indexer/internal/apikeys"
 	"indexer/internal/server"
 )
 
@@ -15,21 +17,39 @@ func TestSearchDefaultLimit(
 
 	db := createDB(t)
 
-	defer db.Close()
+	apiKeyRepository :=
+		apikeys.NewRepository(db)
 
-	apiKey :=
-		createTestAPIKey(
-			t,
-			db,
+	apiKeyService :=
+		apikeys.NewService(
+			apiKeyRepository,
 		)
+
+	t.Cleanup(func() {
+
+		_ = apiKeyService.DeleteByNamespace(
+			context.Background(),
+			"search-default-limit-test",
+		)
+
+		_ = db.Close()
+	})
+
+	apiKey, err :=
+		apiKeyService.Create(
+			t.Context(),
+			"Search Default Limit Test",
+			"search-default-limit-test",
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	app :=
 		server.NewApp(
 			db,
-			createAPIKeyService(
-				t,
-				db,
-			),
+			apiKeyService,
 			createDocumentHandler(
 				t,
 				db,

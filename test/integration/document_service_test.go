@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"indexer/internal/documentfilters"
 	"indexer/internal/documents"
 	"indexer/internal/opensearch"
-	"indexer/internal/documentfilters"
 )
 
 func TestDocumentServiceUpsert(
@@ -17,27 +17,10 @@ func TestDocumentServiceUpsert(
 
 	db := createDB(t)
 
-	defer db.Close()
-
-	cleanupTestData(
-		t,
-		db,
-	)
-
 	cfg := createTestConfig()
 
 	searchClient :=
 		opensearch.NewClient(cfg)
-
-	t.Cleanup(func() {
-
-		_ = opensearch.DeleteDocument(
-			context.Background(),
-			searchClient,
-			"test",
-			"service-test",
-		)
-	})
 
 	searchService :=
 		opensearch.NewService(
@@ -58,6 +41,23 @@ func TestDocumentServiceUpsert(
 			filterRepository,
 			searchService,
 		)
+
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"test",
+			"service-test",
+		)
+
+		_ = documentService.DeleteByNamespace(
+			context.Background(),
+			"test",
+		)
+
+		_ = db.Close()
+	})
 
 	document := &documents.Document{
 		Namespace:  "test",

@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"indexer/internal/apikeys"
+	"indexer/internal/documentfilters"
 	"indexer/internal/documents"
 	"indexer/internal/opensearch"
 	"indexer/internal/server"
-	"indexer/internal/documentfilters"
 )
 
 func TestSearchEndpointFuzzy(
@@ -23,27 +23,18 @@ func TestSearchEndpointFuzzy(
 
 	db := createDB(t)
 
-	defer db.Close()
-
-	cleanupTestData(
-		t,
-		db,
-	)
-
 	cfg := createTestConfig()
 
 	searchClient :=
 		opensearch.NewClient(cfg)
 
-	t.Cleanup(func() {
+	apiKeyRepository :=
+		apikeys.NewRepository(db)
 
-		_ = opensearch.DeleteDocument(
-			context.Background(),
-			searchClient,
-			"test",
-			"fuzzy-test",
+	apiKeyService :=
+		apikeys.NewService(
+			apiKeyRepository,
 		)
-	})
 
 	searchService :=
 		opensearch.NewService(
@@ -53,7 +44,6 @@ func TestSearchEndpointFuzzy(
 	documentRepository :=
 		documents.NewRepository(db)
 
-		
 	filterRepository :=
 		documentfilters.NewRepository(
 			db,
@@ -66,24 +56,45 @@ func TestSearchEndpointFuzzy(
 			searchService,
 		)
 
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"fuzzy-test",
+			"fuzzy-test",
+		)
+
+		_ = filterRepository.DeleteByDocumentKeys(
+			context.Background(),
+			[]string{
+				"fuzzy-test:fuzzy-test",
+			},
+		)
+
+		_ = documentService.DeleteByNamespace(
+			context.Background(),
+			"fuzzy-test",
+		)
+
+		_ = apiKeyService.DeleteByNamespace(
+			context.Background(),
+			"fuzzy-test",
+		)
+
+		_ = db.Close()
+	})
+
 	documentHandler :=
 		documents.NewHandler(
 			documentService,
 		)
 
-	apiKeyRepository :=
-		apikeys.NewRepository(db)
-
-	apiKeyService :=
-		apikeys.NewService(
-			apiKeyRepository,
-		)
-
 	apiKey, err :=
 		apiKeyService.Create(
 			t.Context(),
-			"test",
 			"Fuzzy Test",
+			"fuzzy-test",
 		)
 
 	if err != nil {
@@ -93,7 +104,7 @@ func TestSearchEndpointFuzzy(
 	err = documentService.Upsert(
 		t.Context(),
 		&documents.Document{
-			Namespace:  "test",
+			Namespace:  "fuzzy-test",
 			ExternalID: "fuzzy-test",
 			Title:      "Vinicius Henrique",
 			Text:       "Vinicius Henrique platform",

@@ -43,23 +43,6 @@ func createDB(
 	return db
 }
 
-func cleanupTestData(
-	t *testing.T,
-	db *sqlx.DB,
-) {
-
-	t.Cleanup(func() {
-
-		db.Exec(
-			"DELETE FROM api_keys WHERE namespace = 'test'",
-		)
-
-		db.Exec(
-			"DELETE FROM documents WHERE namespace = 'test'",
-		)
-	})
-}
-
 func createAPIKeyService(
 	t *testing.T,
 	db *sqlx.DB,
@@ -124,8 +107,8 @@ func createTestAPIKey(
 	apiKey, err :=
 		service.Create(
 			context.Background(),
-			"test",
 			"Integration Test",
+			"test",
 		)
 
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 func IndexDocument(
@@ -29,7 +30,7 @@ func IndexDocument(
 		document.DocumentKey,
 	)
 
-	if document.Namespace == "test" {
+	if strings.Contains(document.Namespace,"test") {
 
 		path += "?refresh=true"
 	}

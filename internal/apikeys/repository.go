@@ -2,6 +2,7 @@ package apikeys
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -79,4 +80,49 @@ func (r *Repository) Create(
 	)
 
 	return err
+}
+
+func (r *Repository) DeleteByNamespace(
+	ctx context.Context,
+	namespace string,
+) error {
+
+	result, err := r.db.ExecContext(
+		ctx,
+		`
+		DELETE
+		FROM api_keys
+		WHERE namespace = ?
+		`,
+		namespace,
+	)
+
+	if err != nil {
+
+		fmt.Println(
+			"delete error:",
+			err,
+		)
+
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+
+	if err != nil {
+
+		fmt.Println(
+			"rows affected error:",
+			err,
+		)
+
+		return err
+	}
+
+	fmt.Println(
+		"deleted rows:",
+		rows,
+	)
+
+	return nil
 }

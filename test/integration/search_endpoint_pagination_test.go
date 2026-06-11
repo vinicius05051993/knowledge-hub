@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"indexer/internal/apikeys"
+	"indexer/internal/documentfilters"
 	"indexer/internal/documents"
 	"indexer/internal/opensearch"
 	"indexer/internal/server"
-	"indexer/internal/documentfilters"
 )
 
 func TestSearchEndpointPagination(
@@ -23,41 +23,18 @@ func TestSearchEndpointPagination(
 
 	db := createDB(t)
 
-	defer db.Close()
-
-	cleanupTestData(
-		t,
-		db,
-	)
-
 	cfg := createTestConfig()
 
 	searchClient :=
 		opensearch.NewClient(cfg)
 
-	t.Cleanup(func() {
+	apiKeyRepository :=
+		apikeys.NewRepository(db)
 
-		_ = opensearch.DeleteDocument(
-			context.Background(),
-			searchClient,
-			"test",
-			"page-1",
+	apiKeyService :=
+		apikeys.NewService(
+			apiKeyRepository,
 		)
-
-		_ = opensearch.DeleteDocument(
-			context.Background(),
-			searchClient,
-			"test",
-			"page-2",
-		)
-
-		_ = opensearch.DeleteDocument(
-			context.Background(),
-			searchClient,
-			"test",
-			"page-3",
-		)
-	})
 
 	searchService :=
 		opensearch.NewService(
@@ -67,7 +44,6 @@ func TestSearchEndpointPagination(
 	documentRepository :=
 		documents.NewRepository(db)
 
-	
 	filterRepository :=
 		documentfilters.NewRepository(
 			db,
@@ -80,24 +56,61 @@ func TestSearchEndpointPagination(
 			searchService,
 		)
 
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"pagination-test",
+			"page-1",
+		)
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"pagination-test",
+			"page-2",
+		)
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"pagination-test",
+			"page-3",
+		)
+
+		_ = filterRepository.DeleteByDocumentKeys(
+			context.Background(),
+			[]string{
+				"pagination-test:page-1",
+				"pagination-test:page-2",
+				"pagination-test:page-3",
+			},
+		)
+
+		_ = documentService.DeleteByNamespace(
+			context.Background(),
+			"pagination-test",
+		)
+
+		_ = apiKeyService.DeleteByNamespace(
+			context.Background(),
+			"pagination-test",
+		)
+
+		_ = db.Close()
+	})
+
 	documentHandler :=
 		documents.NewHandler(
 			documentService,
 		)
 
-	apiKeyRepository :=
-		apikeys.NewRepository(db)
-
-	apiKeyService :=
-		apikeys.NewService(
-			apiKeyRepository,
-		)
-
 	apiKey, err :=
 		apiKeyService.Create(
 			t.Context(),
-			"test",
 			"Pagination Test",
+			"pagination-test",
 		)
 
 	if err != nil {
@@ -106,21 +119,21 @@ func TestSearchEndpointPagination(
 
 	documentsToCreate := []*documents.Document{
 		{
-			Namespace:  "test",
+			Namespace:  "pagination-test",
 			ExternalID: "page-1",
 			Title:      "Magento",
 			Text:       "Magento ecommerce",
 			Payload:    []byte(`{"sku":"pagination-test"}`),
 		},
 		{
-			Namespace:  "test",
+			Namespace:  "pagination-test",
 			ExternalID: "page-2",
 			Title:      "Magento",
 			Text:       "Magento ecommerce",
 			Payload:    []byte(`{"sku":"pagination-test"}`),
 		},
 		{
-			Namespace:  "test",
+			Namespace:  "pagination-test",
 			ExternalID: "page-3",
 			Title:      "Magento",
 			Text:       "Magento ecommerce",
@@ -232,6 +245,15 @@ func TestSearchEndpointPagination(
 		recorder,
 		req,
 	)
+
+	if recorder.Code !=
+		http.StatusOK {
+
+		t.Fatalf(
+			"expected 200 got %d",
+			recorder.Code,
+		)
+	}
 
 	var page2 []documents.SearchResponse
 
