@@ -17,8 +17,6 @@ func TestSyncServiceProcessPendingDeletes(
 
 	db := createDB(t)
 
-	defer db.Close()
-
 	cfg := createTestConfig()
 
 	searchClient :=
@@ -31,6 +29,28 @@ func TestSyncServiceProcessPendingDeletes(
 
 	documentRepository :=
 		documents.NewRepository(db)
+
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"sync-test",
+			"test-delete",
+		)
+
+		_ = documentRepository.DeleteByNamespace(
+			context.Background(),
+			"sync-test",
+		)
+
+		syncDocuments(
+			t,
+			db,
+		)
+
+		_ = db.Close()
+	})
 
 	syncService :=
 		documents.NewSyncService(
