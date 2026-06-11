@@ -41,6 +41,18 @@ func (s *Service) DeleteDocument(
 	)
 }
 
+func (s *Service) BulkIndexDocuments(
+	ctx context.Context,
+	documents []*Document,
+) error {
+
+	return BulkIndexDocuments(
+		ctx,
+		s.client,
+		documents,
+	)
+}
+
 func (s *Service) Search(
 	ctx context.Context,
 	query string,

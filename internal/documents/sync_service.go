@@ -12,6 +12,11 @@ type SyncIndexer interface {
 		document *opensearch.Document,
 	) error
 
+	BulkIndexDocuments(
+		ctx context.Context,
+		documents []*opensearch.Document,
+	) error
+
 	DeleteDocuments(
 		ctx context.Context,
 		documentKeys []string,
@@ -49,22 +54,42 @@ func (s *SyncService) ProcessPendingUpserts(
 		return err
 	}
 
-	for _, document := range documents {
+	if len(documents) == 0 {
+		return nil
+	}
 
-		err = s.indexer.IndexDocument(
-			ctx,
-			&opensearch.Document{
-				DocumentKey: document.DocumentKey,
-				Namespace:   document.Namespace,
-				ExternalID:  document.ExternalID,
-				Title:       document.Title,
-				Text:        document.Text,
-			},
+	bulkDocuments :=
+		make(
+			[]*opensearch.Document,
+			0,
+			len(documents),
 		)
 
-		if err != nil {
-			continue
-		}
+	for _, document := range documents {
+
+		bulkDocuments =
+			append(
+				bulkDocuments,
+				&opensearch.Document{
+					DocumentKey: document.DocumentKey,
+					Namespace:   document.Namespace,
+					ExternalID:  document.ExternalID,
+					Title:       document.Title,
+					Text:        document.Text,
+				},
+			)
+	}
+
+	err = s.indexer.BulkIndexDocuments(
+		ctx,
+		bulkDocuments,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	for _, document := range documents {
 
 		err = s.repository.MarkSynced(
 			ctx,
