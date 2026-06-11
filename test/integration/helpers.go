@@ -117,3 +117,46 @@ func createTestAPIKey(
 
 	return apiKey
 }
+
+func syncDocuments(
+	t *testing.T,
+	db *sqlx.DB,
+) {
+
+	cfg := createTestConfig()
+
+	searchClient :=
+		opensearch.NewClient(cfg)
+
+	searchService :=
+		opensearch.NewService(
+			searchClient,
+		)
+
+	documentRepository :=
+		documents.NewRepository(db)
+
+	syncService :=
+		documents.NewSyncService(
+			documentRepository,
+			searchService,
+		)
+
+	err := syncService.ProcessPendingUpserts(
+		context.Background(),
+		1000,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = syncService.ProcessPendingDeletes(
+		context.Background(),
+		1000,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+}

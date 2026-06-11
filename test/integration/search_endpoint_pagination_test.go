@@ -153,6 +153,11 @@ func TestSearchEndpointPagination(
 		}
 	}
 
+	syncDocuments(
+		t,
+		db,
+	)
+
 	app :=
 		server.NewApp(
 			db,

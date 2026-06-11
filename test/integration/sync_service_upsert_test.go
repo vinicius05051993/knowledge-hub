@@ -3,13 +3,13 @@ package integration
 import (
 	"context"
 	"testing"
+	"time"
 
 	"indexer/internal/documents"
 	"indexer/internal/opensearch"
-	"indexer/internal/documentfilters"
 )
 
-func TestDocumentServiceDelete(
+func TestSyncServiceProcessPendingUpserts(
 	t *testing.T,
 ) {
 
@@ -32,29 +32,28 @@ func TestDocumentServiceDelete(
 	documentRepository :=
 		documents.NewRepository(db)
 
-	filterRepository :=
-		documentfilters.NewRepository(
-			db,
-		)
-
-	documentService :=
-		documents.NewService(
+	syncService :=
+		documents.NewSyncService(
 			documentRepository,
-			filterRepository,
 			searchService,
 		)
 
+	now := time.Now().UTC()
+
 	document := &documents.Document{
-		Namespace:  "test",
-		ExternalID: "delete-test",
-		Title:      "Magento Delete",
-		Text:       "Document to be deleted",
-		Payload: []byte(`{
-			"id":123
-		}`),
+		DocumentKey: "sync-test:test-1",
+
+		Namespace:  "sync-test",
+		ExternalID: "test-1",
+
+		Title: "Adobe Experience Manager",
+		Text:  "Adobe AEM Search Test",
+
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
-	err := documentService.Upsert(
+	err := documentRepository.Upsert(
 		context.Background(),
 		document,
 	)
@@ -63,42 +62,40 @@ func TestDocumentServiceDelete(
 		t.Fatal(err)
 	}
 
-	err = documentService.Delete(
+	err = syncService.ProcessPendingUpserts(
 		context.Background(),
-		"test",
-		[]string{
-			"delete-test",
-		},
+		100,
 	)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	syncDocuments(
-		t,
-		db,
-	)
-
-	_, err =
+	documentDB, err :=
 		documentRepository.FindByExternalID(
 			context.Background(),
-			"test",
-			"delete-test",
+			"sync-test",
+			"test-1",
 		)
 
-	if err == nil {
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		t.Fatal(
-			"document should not exist in mysql",
+	if documentDB.SyncStatus !=
+		documents.SyncStatusSynced {
+
+		t.Fatalf(
+			"expected sync_status=%d got=%d",
+			documents.SyncStatusSynced,
+			documentDB.SyncStatus,
 		)
 	}
 
 	results, err :=
-		opensearch.Search(
+		searchService.Search(
 			context.Background(),
-			searchClient,
-			"Magento Delete",
+			"AEM",
 			0,
 			10,
 		)
@@ -107,14 +104,22 @@ func TestDocumentServiceDelete(
 		t.Fatal(err)
 	}
 
+	found := false
+
 	for _, result := range results {
 
 		if result.DocumentKey ==
-			"test:delete-test" {
+			"sync-test:test-1" {
 
-			t.Fatal(
-				"document should not exist in opensearch",
-			)
+			found = true
+			break
 		}
+	}
+
+	if !found {
+
+		t.Fatal(
+			"document not indexed",
+		)
 	}
 }

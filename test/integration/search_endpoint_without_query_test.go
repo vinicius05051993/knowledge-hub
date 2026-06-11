@@ -82,6 +82,11 @@ func TestSearchEndpointWithoutQuery(
 			"search3-test",
 		)
 
+		syncDocuments(
+			t,
+			db,
+		)
+
 		_ = db.Close()
 	})
 
@@ -115,6 +120,11 @@ func TestSearchEndpointWithoutQuery(
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	syncDocuments(
+		t,
+		db,
+	)
 
 	app :=
 		server.NewApp(

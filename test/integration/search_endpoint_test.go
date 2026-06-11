@@ -82,6 +82,11 @@ func TestSearchEndpoint(
 			"search2-test",
 		)
 
+		syncDocuments(
+			t,
+			db,
+		)
+
 		_ = db.Close()
 	})
 
@@ -119,6 +124,11 @@ func TestSearchEndpoint(
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	syncDocuments(
+		t,
+		db,
+	)
 
 	app :=
 		server.NewApp(

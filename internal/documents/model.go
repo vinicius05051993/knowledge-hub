@@ -2,6 +2,12 @@ package documents
 
 import "time"
 
+const (
+	SyncStatusSynced = iota
+	SyncStatusPendingUpsert
+	SyncStatusPendingDelete
+)
+
 type Document struct {
 	ID int64 `db:"id"`
 
@@ -14,6 +20,9 @@ type Document struct {
 	Text string `db:"text"`
 
 	Payload []byte `db:"payload"`
+
+	SyncStatus int        `db:"sync_status"`
+	DeletedAt  *time.Time `db:"deleted_at"`
 
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`

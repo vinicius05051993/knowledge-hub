@@ -134,6 +134,11 @@ func TestSearchEndpointWithFilters(
 		t.Fatal(err)
 	}
 
+	syncDocuments(
+		t,
+		db,
+	)
+
 	documentHandler :=
 		documents.NewHandler(
 			documentService,

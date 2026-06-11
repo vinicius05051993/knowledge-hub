@@ -9,6 +9,9 @@ CREATE TABLE documents (
 
     payload JSON,
 
+    sync_status TINYINT NOT NULL DEFAULT 0,
+    deleted_at DATETIME NULL,
+
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
 
@@ -19,5 +22,10 @@ CREATE TABLE documents (
 
     KEY idx_namespace (
         namespace
+    ),
+
+    KEY idx_sync_status_id (
+        sync_status,
+        id
     )
 );

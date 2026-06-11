@@ -11,17 +11,6 @@ import (
 )
 
 type SearchIndexer interface {
-
-	IndexDocument(
-		ctx context.Context,
-		document *opensearch.Document,
-	) error
-
-	DeleteDocuments(
-        ctx context.Context,
-        documentKeys []string,
-    ) error
-
 	Search(
 		ctx context.Context,
 		query string,
@@ -124,21 +113,6 @@ func (s *Service) Upsert(
 		return err
 	}
 
-	err = s.indexer.IndexDocument(
-		ctx,
-		&opensearch.Document{
-			DocumentKey: document.DocumentKey,
-			Namespace:   document.Namespace,
-			ExternalID:  document.ExternalID,
-			Title:       document.Title,
-			Text:        document.Text,
-		},
-	)
-
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -174,15 +148,6 @@ func (s *Service) Delete(
 	}
 
 	err = s.filterRepository.DeleteByDocumentKeys(
-		ctx,
-		documentKeys,
-	)
-
-	if err != nil {
-		return err
-	}
-
-	err = s.indexer.DeleteDocuments(
 		ctx,
 		documentKeys,
 	)

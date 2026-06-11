@@ -1,0 +1,3461 @@
+========================================
+TESTES DE INTEGRACAO
+========================================
+
+===== test/api/health_test.go =====
+package api
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"indexer/internal/server"
+)
+
+func TestHealth(
+	t *testing.T,
+) {
+
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/health",
+		nil,
+	)
+
+	recorder := httptest.NewRecorder()
+
+	server.HealthHandler(
+		recorder,
+		req,
+	)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf(
+			"expected 200 got %d",
+			recorder.Code,
+		)
+	}
+}
+===== test/api/mocks/apikey_repository.go =====
+package mocks
+
+import (
+	"context"
+
+	"indexer/internal/apikeys"
+)
+
+type APIKeyRepository struct {
+	FindByHashFunc func(
+		ctx context.Context,
+		hash string,
+	) (*apikeys.APIKey, error)
+
+	CreateFunc func(
+		ctx context.Context,
+		apiKey *apikeys.APIKey,
+	) error
+}
+
+func (m *APIKeyRepository) FindByHash(
+	ctx context.Context,
+	hash string,
+) (*apikeys.APIKey, error) {
+
+	return m.FindByHashFunc(
+		ctx,
+		hash,
+	)
+}
+
+func (m *APIKeyRepository) Create(
+	ctx context.Context,
+	apiKey *apikeys.APIKey,
+) error {
+
+	if m.CreateFunc == nil {
+		return nil
+	}
+
+	return m.CreateFunc(
+		ctx,
+		apiKey,
+	)
+}
+===== test/api/protected_test.go =====
+package api
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"indexer/internal/apikeys"
+	"indexer/internal/server"
+	"indexer/test/api/mocks"
+)
+
+func TestProtectedInvalidAPIKey(
+	t *testing.T,
+) {
+
+	repository :=
+		&mocks.APIKeyRepository{
+			FindByHashFunc: func(
+				ctx context.Context,
+				hash string,
+			) (*apikeys.APIKey, error) {
+
+				return nil,
+					errors.New("not found")
+			},
+		}
+
+	service :=
+		apikeys.NewService(
+			repository,
+		)
+
+	app :=
+		server.NewApp(
+			nil,
+			service,
+			nil,
+		)
+
+	router := app.Router()
+
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/protected",
+		nil,
+	)
+
+	req.Header.Set(
+		"X-API-Key",
+		"invalid-key",
+	)
+
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(
+		recorder,
+		req,
+	)
+
+	if recorder.Code != http.StatusUnauthorized {
+
+		t.Fatalf(
+			"expected 401 got %d",
+			recorder.Code,
+		)
+	}
+}
+
+func TestProtectedValidAPIKey(
+	t *testing.T,
+) {
+
+	repository :=
+		&mocks.APIKeyRepository{
+			FindByHashFunc: func(
+				ctx context.Context,
+				hash string,
+			) (*apikeys.APIKey, error) {
+
+				return &apikeys.APIKey{
+					ID:        1,
+					Namespace: "magento",
+				}, nil
+			},
+		}
+
+	service :=
+		apikeys.NewService(
+			repository,
+		)
+
+	app :=
+		server.NewApp(
+			nil,
+			service,
+			nil,
+		)
+
+	router := app.Router()
+
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/protected",
+		nil,
+	)
+
+	req.Header.Set(
+		"X-API-Key",
+		"sk_live_test",
+	)
+
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(
+		recorder,
+		req,
+	)
+
+	if recorder.Code != http.StatusOK {
+
+		t.Fatalf(
+			"expected 200 got %d",
+			recorder.Code,
+		)
+	}
+}
+===== test/api/search_test.go =====
+package api
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"indexer/internal/server"
+)
+
+func TestSearchWithoutAPIKey(
+	t *testing.T,
+) {
+
+	app :=
+		server.NewApp(
+			nil,
+			nil,
+			nil,
+		)
+
+	router := app.Router()
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/search",
+		strings.NewReader(`{
+			"query":"Magento"
+		}`),
+	)
+
+	req.Header.Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	recorder :=
+		httptest.NewRecorder()
+
+	router.ServeHTTP(
+		recorder,
+		req,
+	)
+
+	if recorder.Code !=
+		http.StatusUnauthorized {
+
+		t.Fatalf(
+			"expected 401 got %d",
+			recorder.Code,
+		)
+	}
+}
+===== test/integration/apikey_repository_test.go =====
+package integration
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+
+	"indexer/internal/apikeys"
+)
+
+func TestAPIKeyRepositoryCreate(
+	t *testing.T,
+) {
+
+	db := createDB(t)
+
+	namespace :=
+		"test"
+
+	repository :=
+		apikeys.NewRepository(db)
+
+	t.Cleanup(func() {
+
+		_ = repository.DeleteByNamespace(
+			context.Background(),
+			namespace,
+		)
+
+		_ = db.Close()
+	})
+
+	key := &apikeys.APIKey{
+		Name:       "Test",
+		Namespace:  namespace,
+		APIKeyHash: uuid.NewString(),
+		Permissions: `[
+			"DOCUMENT_UPSERT",
+			"DOCUMENT_DELETE",
+			"DOCUMENT_SEARCH"
+		]`,
+		Active:    true,
+		CreatedAt: time.Now(),
+	}
+
+	err := repository.Create(
+		context.Background(),
+		key,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+===== test/integration/document_filters_repository_test.go =====
+package integration
+
+import (
+	"context"
+	"testing"
+
+	"indexer/internal/documentfilters"
+	"indexer/internal/documents"
+	"indexer/internal/opensearch"
+)
+
+func TestDocumentFiltersRepository(
+	t *testing.T,
+) {
+
+	ensureDocumentsIndex(t)
+
+	db := createDB(t)
+
+	cfg := createTestConfig()
+
+	searchClient :=
+		opensearch.NewClient(cfg)
+
+	documentRepository :=
+		documents.NewRepository(db)
+
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
+	searchService :=
+		opensearch.NewService(
+			searchClient,
+		)
+
+	documentService :=
+		documents.NewService(
+			documentRepository,
+			filterRepository,
+			searchService,
+		)
+
+	namespace := "test"
+
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			namespace,
+			"filters-test",
+		)
+
+		_ = filterRepository.DeleteByDocumentKeys(
+			context.Background(),
+			[]string{
+				"test:filters-test",
+			},
+		)
+
+		_ = documentService.DeleteByNamespace(
+			context.Background(),
+			namespace,
+		)
+
+		_ = db.Close()
+	})
+
+	err := documentService.Upsert(
+		context.Background(),
+		&documents.Document{
+			Namespace:  namespace,
+			ExternalID: "filters-test",
+			Title:      "Produto",
+			Text:       "Produto de teste",
+			Payload: []byte(`{
+				"sku":"vini",
+				"brand":"apple",
+				"price":100
+			}`),
+		},
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type FilterRow struct {
+		DocumentKey string `db:"document_key"`
+		FieldName   string `db:"field_name"`
+		FieldValue  string `db:"field_value"`
+	}
+
+	var rows []FilterRow
+
+	err = db.Select(
+		&rows,
+		`
+		SELECT
+			document_key,
+			field_name,
+			field_value
+		FROM document_filters
+		WHERE document_key = ?
+		`,
+		"test:filters-test",
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(rows) != 2 {
+
+		t.Fatalf(
+			"expected 2 filters got %d",
+			len(rows),
+		)
+	}
+
+	foundSKU := false
+	foundBrand := false
+
+	for _, row := range rows {
+
+		if row.FieldName == "sku" &&
+			row.FieldValue == "vini" {
+
+			foundSKU = true
+		}
+
+		if row.FieldName == "brand" &&
+			row.FieldValue == "apple" {
+
+			foundBrand = true
+		}
+	}
+
+	if !foundSKU {
+
+		t.Fatal(
+			"sku filter not found",
+		)
+	}
+
+	if !foundBrand {
+
+		t.Fatal(
+			"brand filter not found",
+		)
+	}
+}
+===== test/integration/document_repository_search_test.go =====
+package integration
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"indexer/internal/documents"
+)
+
+func TestFindByDocumentKeys(
+	t *testing.T,
+) {
+
+	db := createDB(t)
+
+	defer db.Close()
+
+	repository :=
+		documents.NewRepository(db)
+
+	now := time.Now().UTC()
+
+	document1 := &documents.Document{
+		DocumentKey: "test:1",
+
+		Namespace: "test",
+
+		ExternalID: "1",
+
+		Title: "Document 1",
+
+		Text: "Text 1",
+
+		Payload: []byte(`{
+			"id":1
+		}`),
+
+		CreatedAt: now,
+
+		UpdatedAt: now,
+	}
+
+	document2 := &documents.Document{
+		DocumentKey: "test:2",
+
+		Namespace: "test",
+
+		ExternalID: "2",
+
+		Title: "Document 2",
+
+		Text: "Text 2",
+
+		Payload: []byte(`{
+			"id":2
+		}`),
+
+		CreatedAt: now,
+
+		UpdatedAt: now,
+	}
+
+	err := repository.Upsert(
+		context.Background(),
+		document1,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = repository.Upsert(
+		context.Background(),
+		document2,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	foundDocuments, err :=
+		repository.FindByDocumentKeys(
+			context.Background(),
+			[]string{
+				"test:1",
+				"test:2",
+			},
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(foundDocuments) != 2 {
+
+		t.Fatalf(
+			"expected 2 documents, got %d",
+			len(foundDocuments),
+		)
+	}
+}
+===== test/integration/document_repository_test.go =====
+package integration
+
+import "testing"
+
+func TestDocumentRepository(
+	t *testing.T,
+) {
+
+}
+===== test/integration/document_service_delete_test.go =====
+package integration
+
+import (
+	"context"
+	"testing"
+
+	"indexer/internal/documents"
+	"indexer/internal/opensearch"
+	"indexer/internal/documentfilters"
+)
+
+func TestDocumentServiceDelete(
+	t *testing.T,
+) {
+
+	ensureDocumentsIndex(t)
+
+	db := createDB(t)
+
+	defer db.Close()
+
+	cfg := createTestConfig()
+
+	searchClient :=
+		opensearch.NewClient(cfg)
+
+	searchService :=
+		opensearch.NewService(
+			searchClient,
+		)
+
+	documentRepository :=
+		documents.NewRepository(db)
+
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
+	documentService :=
+		documents.NewService(
+			documentRepository,
+			filterRepository,
+			searchService,
+		)
+
+	document := &documents.Document{
+		Namespace:  "test",
+		ExternalID: "delete-test",
+		Title:      "Magento Delete",
+		Text:       "Document to be deleted",
+		Payload: []byte(`{
+			"id":123
+		}`),
+	}
+
+	err := documentService.Upsert(
+		context.Background(),
+		document,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = documentService.Delete(
+		context.Background(),
+		"test",
+		[]string{
+			"delete-test",
+		},
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err =
+		documentRepository.FindByExternalID(
+			context.Background(),
+			"test",
+			"delete-test",
+		)
+
+	if err == nil {
+
+		t.Fatal(
+			"document should not exist in mysql",
+		)
+	}
+
+	results, err :=
+		opensearch.Search(
+			context.Background(),
+			searchClient,
+			"Magento Delete",
+			0,
+			10,
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, result := range results {
+
+		if result.DocumentKey ==
+			"test:delete-test" {
+
+			t.Fatal(
+				"document should not exist in opensearch",
+			)
+		}
+	}
+}
+===== test/integration/document_service_search_filter_test.go =====
+package integration
+
+import (
+	"context"
+	"testing"
+
+	"indexer/internal/documents"
+	"indexer/internal/opensearch"
+	"indexer/internal/documentfilters"
+)
+
+func TestDocumentServiceSearchWithFilters(
+	t *testing.T,
+) {
+
+	ensureDocumentsIndex(t)
+
+	db := createDB(t)
+
+	defer db.Close()
+
+	cfg := createTestConfig()
+
+	searchClient :=
+		opensearch.NewClient(cfg)
+
+	searchService :=
+		opensearch.NewService(
+			searchClient,
+		)
+
+	documentRepository :=
+		documents.NewRepository(db)
+
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
+	documentService :=
+		documents.NewService(
+			documentRepository,
+			filterRepository,
+			searchService,
+		)
+
+	document1 := &documents.Document{
+		Namespace:  "test",
+		ExternalID: "1",
+		Title:      "Magento 2.4",
+		Text:       "Magento ecommerce platform",
+		Payload: []byte(`{
+			"sku":"123",
+			"brand":"Dell"
+		}`),
+	}
+
+	document2 := &documents.Document{
+		Namespace:  "test",
+		ExternalID: "2",
+		Title:      "Magento Commerce",
+		Text:       "Adobe Commerce platform",
+		Payload: []byte(`{
+			"sku":"456",
+			"brand":"HP"
+		}`),
+	}
+
+	err := documentService.Upsert(
+		context.Background(),
+		document1,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = documentService.Upsert(
+		context.Background(),
+		document2,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	results, err :=
+		documentService.Search(
+			context.Background(),
+			"Magento",
+			0,
+			10,
+			map[string]string{
+				"sku": "123",
+			},
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(results) != 1 {
+
+		t.Fatalf(
+			"expected 1 document, got %d",
+			len(results),
+		)
+	}
+
+	if results[0].ExternalID !=
+		"1" {
+
+		t.Fatal(
+			"unexpected document returned",
+		)
+	}
+
+	if results[0].DocumentKey !=
+		"test:1" {
+
+		t.Fatal(
+			"unexpected document key",
+		)
+	}
+}
+===== test/integration/document_service_search_test.go =====
+package integration
+
+import (
+	"context"
+	"testing"
+
+	"indexer/internal/documents"
+	"indexer/internal/opensearch"
+	"indexer/internal/documentfilters"
+)
+
+func TestDocumentServiceSearch(
+	t *testing.T,
+) {
+
+	ensureDocumentsIndex(t)
+
+	db := createDB(t)
+
+	cfg := createTestConfig()
+
+	searchClient :=
+		opensearch.NewClient(cfg)
+
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"test",
+			"1",
+		)
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"test",
+			"2",
+		)
+
+		_ = db.Close()
+	})
+
+	searchService :=
+		opensearch.NewService(
+			searchClient,
+		)
+
+	documentRepository :=
+		documents.NewRepository(db)
+
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
+	documentService :=
+		documents.NewService(
+			documentRepository,
+			filterRepository,
+			searchService,
+		)
+
+	document1 := &documents.Document{
+		Namespace:  "test",
+		ExternalID: "1",
+		Title:      "Adobe 2.4",
+		Text:       "Adobe ecommerce platform",
+		Payload:    []byte(`{"id":1}`),
+	}
+
+	document2 := &documents.Document{
+		Namespace:  "test",
+		ExternalID: "2",
+		Title:      "Adobe Commerce",
+		Text:       "Adobe Commerce platform",
+		Payload:    []byte(`{"id":2}`),
+	}
+
+	err := documentService.Upsert(
+		context.Background(),
+		document1,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = documentService.Upsert(
+		context.Background(),
+		document2,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	results, err :=
+		documentService.Search(
+			context.Background(),
+			"Adobe",
+			0,
+			10,
+			nil,
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(results) != 2 {
+
+		t.Fatalf(
+			"expected 2 documents, got %d",
+			len(results),
+		)
+	}
+}
+===== test/integration/document_service_test.go =====
+package integration
+
+import (
+	"context"
+	"testing"
+
+	"indexer/internal/documentfilters"
+	"indexer/internal/documents"
+	"indexer/internal/opensearch"
+)
+
+func TestDocumentServiceUpsert(
+	t *testing.T,
+) {
+
+	ensureDocumentsIndex(t)
+
+	db := createDB(t)
+
+	cfg := createTestConfig()
+
+	searchClient :=
+		opensearch.NewClient(cfg)
+
+	searchService :=
+		opensearch.NewService(
+			searchClient,
+		)
+
+	documentRepository :=
+		documents.NewRepository(db)
+
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
+	documentService :=
+		documents.NewService(
+			documentRepository,
+			filterRepository,
+			searchService,
+		)
+
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"test",
+			"service-test",
+		)
+
+		_ = documentService.DeleteByNamespace(
+			context.Background(),
+			"test",
+		)
+
+		_ = db.Close()
+	})
+
+	document := &documents.Document{
+		Namespace:  "test",
+		ExternalID: "service-test",
+		Title:      "Magento 2.4",
+		Text:       "Magento ecommerce platform",
+		Payload: []byte(`{
+			"id":123
+		}`),
+	}
+
+	err := documentService.Upsert(
+		context.Background(),
+		document,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if document.DocumentKey !=
+		"test:service-test" {
+
+		t.Fatal(
+			"document key not generated",
+		)
+	}
+
+	foundDocument, err :=
+		documentRepository.FindByExternalID(
+			context.Background(),
+			"test",
+			"service-test",
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if foundDocument == nil {
+
+		t.Fatal(
+			"document not found in mysql",
+		)
+	}
+
+	if foundDocument.DocumentKey !=
+		"test:service-test" {
+
+		t.Fatal(
+			"unexpected document key",
+		)
+	}
+
+	if foundDocument.Title !=
+		"Magento 2.4" {
+
+		t.Fatal(
+			"unexpected title",
+		)
+	}
+
+	results, err :=
+		opensearch.Search(
+			context.Background(),
+			searchClient,
+			"Magento",
+			0,
+			10,
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found := false
+
+	for _, result := range results {
+
+		if result.DocumentKey ==
+			"test:service-test" {
+
+			if result.Namespace !=
+				"test" {
+
+				t.Fatal(
+					"unexpected namespace",
+				)
+			}
+
+			if result.ExternalID !=
+				"service-test" {
+
+				t.Fatal(
+					"unexpected external id",
+				)
+			}
+
+			found = true
+
+			break
+		}
+	}
+
+	if !found {
+
+		t.Fatal(
+			"document not found in opensearch",
+		)
+	}
+}
+===== test/integration/helpers.go =====
+package integration
+
+import (
+	"context"
+	"testing"
+
+	"indexer/internal/apikeys"
+	"indexer/internal/config"
+	"indexer/internal/database"
+	"indexer/internal/documents"
+	"indexer/internal/opensearch"
+	"indexer/internal/documentfilters"
+
+	"github.com/jmoiron/sqlx"
+)
+
+func createTestConfig() *config.Config {
+
+	return &config.Config{
+		MySQLHost:     "localhost",
+		MySQLPort:     "3306",
+		MySQLDatabase: "indexer",
+		MySQLUser:     "root",
+		MySQLPassword: "root",
+
+		OpenSearchHost: "localhost",
+		OpenSearchPort: "9200",
+	}
+}
+
+func createDB(
+	t *testing.T,
+) *sqlx.DB {
+
+	cfg := createTestConfig()
+
+	db, err := database.NewMySQL(cfg)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return db
+}
+
+func createAPIKeyService(
+	t *testing.T,
+	db *sqlx.DB,
+) *apikeys.Service {
+
+	repository :=
+		apikeys.NewRepository(db)
+
+	return apikeys.NewService(
+		repository,
+	)
+}
+
+func createDocumentHandler(
+	t *testing.T,
+	db *sqlx.DB,
+) *documents.Handler {
+
+	cfg := createTestConfig()
+
+	searchClient :=
+		opensearch.NewClient(cfg)
+
+	searchService :=
+		opensearch.NewService(
+			searchClient,
+		)
+
+	documentRepository :=
+		documents.NewRepository(db)
+
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
+	documentService :=
+		documents.NewService(
+			documentRepository,
+			filterRepository,
+			searchService,
+		)
+
+	return documents.NewHandler(
+		documentService,
+	)
+}
+
+func createTestAPIKey(
+	t *testing.T,
+	db *sqlx.DB,
+) string {
+
+	repository :=
+		apikeys.NewRepository(db)
+
+	service :=
+		apikeys.NewService(
+			repository,
+		)
+
+	apiKey, err :=
+		service.Create(
+			context.Background(),
+			"Integration Test",
+			"test",
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return apiKey
+}
+===== test/integration/opensearch_document_test.go =====
+package integration
+
+import (
+	"context"
+	"testing"
+
+	"indexer/internal/opensearch"
+)
+
+func TestIndexDocument(
+	t *testing.T,
+) {
+
+	ensureDocumentsIndex(t)
+
+	cfg := createTestConfig()
+
+	client :=
+		opensearch.NewClient(cfg)
+
+	document := &opensearch.Document{
+		DocumentKey: "test:123",
+		Namespace: "test",
+		ExternalID: "123",
+		Title: "Magento 2.4",
+		Text: "Magento é uma plataforma de ecommerce",
+	}
+
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			client,
+			"test",
+			"123",
+		)
+	})
+
+	err := opensearch.IndexDocument(
+		context.Background(),
+		client,
+		document,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+===== test/integration/opensearch_helpers.go =====
+package integration
+
+import (
+	"context"
+	"testing"
+
+	"indexer/internal/opensearch"
+)
+
+func ensureDocumentsIndex(
+	t *testing.T,
+) {
+
+	cfg := createTestConfig()
+
+	client :=
+		opensearch.NewClient(cfg)
+
+	err :=
+		opensearch.CreateDocumentsIndex(
+			context.Background(),
+			client,
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+===== test/integration/opensearch_search_test.go =====
+package integration
+
+import (
+	"context"
+	"testing"
+
+	"indexer/internal/opensearch"
+)
+
+func TestSearchDocument(
+	t *testing.T,
+) {
+
+	ensureDocumentsIndex(t)
+
+	cfg := createTestConfig()
+
+	client :=
+		opensearch.NewClient(cfg)
+
+	document := &opensearch.Document{
+		DocumentKey: "test:999",
+
+		Namespace: "test",
+
+		ExternalID: "999",
+
+		Title: "Magento 2.4",
+
+		Text: "Magento é uma plataforma de ecommerce",
+	}
+
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			client,
+			"test",
+			"999",
+		)
+	})
+
+	err := opensearch.IndexDocument(
+		context.Background(),
+		client,
+		document,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	results, err :=
+		opensearch.Search(
+			context.Background(),
+			client,
+			"Magento",
+			0,
+			10,
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(results) == 0 {
+
+		t.Fatal(
+			"no search results returned",
+		)
+	}
+
+	found := false
+
+	for _, result := range results {
+
+		if result.DocumentKey ==
+			"test:999" {
+
+			if result.Namespace !=
+				"test" {
+
+				t.Fatal(
+					"unexpected namespace",
+				)
+			}
+
+			if result.ExternalID !=
+				"999" {
+
+				t.Fatal(
+					"unexpected external id",
+				)
+			}
+
+			found = true
+
+			break
+		}
+	}
+
+	if !found {
+
+		t.Fatal(
+			"indexed document not found",
+		)
+	}
+}
+===== test/integration/opensearch_test.go =====
+package integration
+
+import (
+	"context"
+	"testing"
+
+	"indexer/internal/opensearch"
+)
+
+func TestCreateDocumentsIndex(
+	t *testing.T,
+) {
+
+	cfg := createTestConfig()
+
+	client :=
+		opensearch.NewClient(cfg)
+
+	err :=
+		opensearch.CreateDocumentsIndex(
+			context.Background(),
+			client,
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDocumentsIndexExists(
+	t *testing.T,
+) {
+
+	ensureDocumentsIndex(t)
+
+	cfg := createTestConfig()
+
+	client :=
+		opensearch.NewClient(cfg)
+
+	exists, err :=
+		opensearch.IndexExists(
+			context.Background(),
+			client,
+			opensearch.DocumentsIndex,
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !exists {
+
+		t.Fatal(
+			"documents index does not exist",
+		)
+	}
+}
+===== test/integration/search_endpoint_default_limit_test.go =====
+package integration
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"context"
+
+	"indexer/internal/apikeys"
+	"indexer/internal/server"
+)
+
+func TestSearchDefaultLimit(
+	t *testing.T,
+) {
+
+	db := createDB(t)
+
+	apiKeyRepository :=
+		apikeys.NewRepository(db)
+
+	apiKeyService :=
+		apikeys.NewService(
+			apiKeyRepository,
+		)
+
+	t.Cleanup(func() {
+
+		_ = apiKeyService.DeleteByNamespace(
+			context.Background(),
+			"search-default-limit-test",
+		)
+
+		_ = db.Close()
+	})
+
+	apiKey, err :=
+		apiKeyService.Create(
+			t.Context(),
+			"Search Default Limit Test",
+			"search-default-limit-test",
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	app :=
+		server.NewApp(
+			db,
+			apiKeyService,
+			createDocumentHandler(
+				t,
+				db,
+			),
+		)
+
+	router := app.Router()
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/search",
+		strings.NewReader(`{
+			"query":"Magento"
+		}`),
+	)
+
+	req.Header.Set(
+		"X-API-Key",
+		apiKey,
+	)
+
+	req.Header.Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	rec :=
+		httptest.NewRecorder()
+
+	router.ServeHTTP(
+		rec,
+		req,
+	)
+
+	if rec.Code !=
+		http.StatusOK {
+
+		t.Fatalf(
+			"expected 200 got %d",
+			rec.Code,
+		)
+	}
+}
+===== test/integration/search_endpoint_filters_test.go =====
+package integration
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"indexer/internal/apikeys"
+	"indexer/internal/documentfilters"
+	"indexer/internal/documents"
+	"indexer/internal/opensearch"
+	"indexer/internal/server"
+)
+
+func TestSearchEndpointWithFilters(
+	t *testing.T,
+) {
+
+	ensureDocumentsIndex(t)
+
+	db := createDB(t)
+
+	cfg := createTestConfig()
+
+	searchClient :=
+		opensearch.NewClient(cfg)
+
+	apiKeyRepository :=
+		apikeys.NewRepository(db)
+
+	apiKeyService :=
+		apikeys.NewService(
+			apiKeyRepository,
+		)
+
+	searchService :=
+		opensearch.NewService(
+			searchClient,
+		)
+
+	documentRepository :=
+		documents.NewRepository(db)
+
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
+	documentService :=
+		documents.NewService(
+			documentRepository,
+			filterRepository,
+			searchService,
+		)
+
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"search-test",
+			"filter-1",
+		)
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"search-test",
+			"filter-2",
+		)
+
+		_ = filterRepository.DeleteByDocumentKeys(
+			context.Background(),
+			[]string{
+				"search-test:filter-1",
+				"search-test:filter-2",
+			},
+		)
+
+		_ = documentService.DeleteByNamespace(
+			context.Background(),
+			"search-test",
+		)
+
+		_ = apiKeyService.DeleteByNamespace(
+			context.Background(),
+			"search-test",
+		)
+
+		_ = db.Close()
+	})
+
+	apiKey, err :=
+		apiKeyService.Create(
+			t.Context(),
+			"Search Test",
+			"search-test",
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = documentService.Upsert(
+		t.Context(),
+		&documents.Document{
+			Namespace:  "search-test",
+			ExternalID: "filter-1",
+			Title:      "Magento",
+			Text:       "Magento ecommerce",
+			Payload:    []byte(`{"sku":"abc"}`),
+		},
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = documentService.Upsert(
+		t.Context(),
+		&documents.Document{
+			Namespace:  "search-test",
+			ExternalID: "filter-2",
+			Title:      "Magento",
+			Text:       "Magento ecommerce",
+			Payload:    []byte(`{"sku":"xyz"}`),
+		},
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	documentHandler :=
+		documents.NewHandler(
+			documentService,
+		)
+
+	app :=
+		server.NewApp(
+			db,
+			apiKeyService,
+			documentHandler,
+		)
+
+	router := app.Router()
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/search",
+		strings.NewReader(`{
+			"query":"Magento",
+			"filters":{
+				"sku":"abc"
+			}
+		}`),
+	)
+
+	req.Header.Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	req.Header.Set(
+		"X-API-Key",
+		apiKey,
+	)
+
+	recorder :=
+		httptest.NewRecorder()
+
+	router.ServeHTTP(
+		recorder,
+		req,
+	)
+
+	if recorder.Code !=
+		http.StatusOK {
+
+		t.Fatalf(
+			"expected 200 got %d",
+			recorder.Code,
+		)
+	}
+
+	var response []documents.SearchResponse
+
+	err = json.Unmarshal(
+		recorder.Body.Bytes(),
+		&response,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(response) != 1 {
+
+		t.Fatalf(
+			"expected 1 result got %d",
+			len(response),
+		)
+	}
+
+	if response[0].ExternalID !=
+		"filter-1" {
+
+		t.Fatal(
+			"wrong document returned",
+		)
+	}
+}
+===== test/integration/search_endpoint_fuzzy_test.go =====
+package integration
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"indexer/internal/apikeys"
+	"indexer/internal/documentfilters"
+	"indexer/internal/documents"
+	"indexer/internal/opensearch"
+	"indexer/internal/server"
+)
+
+func TestSearchEndpointFuzzy(
+	t *testing.T,
+) {
+
+	ensureDocumentsIndex(t)
+
+	db := createDB(t)
+
+	cfg := createTestConfig()
+
+	searchClient :=
+		opensearch.NewClient(cfg)
+
+	apiKeyRepository :=
+		apikeys.NewRepository(db)
+
+	apiKeyService :=
+		apikeys.NewService(
+			apiKeyRepository,
+		)
+
+	searchService :=
+		opensearch.NewService(
+			searchClient,
+		)
+
+	documentRepository :=
+		documents.NewRepository(db)
+
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
+	documentService :=
+		documents.NewService(
+			documentRepository,
+			filterRepository,
+			searchService,
+		)
+
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"fuzzy-test",
+			"fuzzy-test",
+		)
+
+		_ = filterRepository.DeleteByDocumentKeys(
+			context.Background(),
+			[]string{
+				"fuzzy-test:fuzzy-test",
+			},
+		)
+
+		_ = documentService.DeleteByNamespace(
+			context.Background(),
+			"fuzzy-test",
+		)
+
+		_ = apiKeyService.DeleteByNamespace(
+			context.Background(),
+			"fuzzy-test",
+		)
+
+		_ = db.Close()
+	})
+
+	documentHandler :=
+		documents.NewHandler(
+			documentService,
+		)
+
+	apiKey, err :=
+		apiKeyService.Create(
+			t.Context(),
+			"Fuzzy Test",
+			"fuzzy-test",
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = documentService.Upsert(
+		t.Context(),
+		&documents.Document{
+			Namespace:  "fuzzy-test",
+			ExternalID: "fuzzy-test",
+			Title:      "Vinicius Henrique",
+			Text:       "Vinicius Henrique platform",
+			Payload: []byte(`{
+				"sku":"fuzzy-test"
+			}`),
+		},
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	app :=
+		server.NewApp(
+			db,
+			apiKeyService,
+			documentHandler,
+		)
+
+	router := app.Router()
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/search",
+		strings.NewReader(`{
+			"query":"vinixcius"
+		}`),
+	)
+
+	req.Header.Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	req.Header.Set(
+		"X-API-Key",
+		apiKey,
+	)
+
+	recorder :=
+		httptest.NewRecorder()
+
+	router.ServeHTTP(
+		recorder,
+		req,
+	)
+
+	if recorder.Code !=
+		http.StatusOK {
+
+		t.Fatalf(
+			"expected 200 got %d",
+			recorder.Code,
+		)
+	}
+
+	var response []documents.SearchResponse
+
+	err = json.Unmarshal(
+		recorder.Body.Bytes(),
+		&response,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(response) != 1 {
+
+		t.Fatalf(
+			"expected 1 result got %d",
+			len(response),
+		)
+	}
+
+	if response[0].ExternalID !=
+		"fuzzy-test" {
+
+		t.Fatalf(
+			"unexpected document returned: %s",
+			response[0].ExternalID,
+		)
+	}
+}
+===== test/integration/search_endpoint_highlight_test.go =====
+package integration
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"indexer/internal/apikeys"
+	"indexer/internal/documentfilters"
+	"indexer/internal/documents"
+	"indexer/internal/opensearch"
+	"indexer/internal/server"
+)
+
+func TestSearchEndpointHighlight(
+	t *testing.T,
+) {
+
+	ensureDocumentsIndex(t)
+
+	db := createDB(t)
+
+	cfg := createTestConfig()
+
+	searchClient :=
+		opensearch.NewClient(cfg)
+
+	apiKeyRepository :=
+		apikeys.NewRepository(db)
+
+	apiKeyService :=
+		apikeys.NewService(
+			apiKeyRepository,
+		)
+
+	searchService :=
+		opensearch.NewService(
+			searchClient,
+		)
+
+	documentRepository :=
+		documents.NewRepository(db)
+
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
+	documentService :=
+		documents.NewService(
+			documentRepository,
+			filterRepository,
+			searchService,
+		)
+
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"highlight-test",
+			"highlight-test",
+		)
+
+		_ = filterRepository.DeleteByDocumentKeys(
+			context.Background(),
+			[]string{
+				"highlight-test:highlight-test",
+			},
+		)
+
+		_ = documentService.DeleteByNamespace(
+			context.Background(),
+			"highlight-test",
+		)
+
+		_ = apiKeyService.DeleteByNamespace(
+			context.Background(),
+			"highlight-test",
+		)
+
+		_ = db.Close()
+	})
+
+	documentHandler :=
+		documents.NewHandler(
+			documentService,
+		)
+
+	apiKey, err :=
+		apiKeyService.Create(
+			t.Context(),
+			"Highlight Test",
+			"highlight-test",
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = documentService.Upsert(
+		t.Context(),
+		&documents.Document{
+			Namespace:  "highlight-test",
+			ExternalID: "highlight-test",
+			Title:      "Magento 2.4",
+			Text:       "Magento ecommerce platform",
+			Payload: []byte(`{
+				"sku":"highlight-test"
+			}`),
+		},
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	app :=
+		server.NewApp(
+			db,
+			apiKeyService,
+			documentHandler,
+		)
+
+	router := app.Router()
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/search",
+		strings.NewReader(`{
+			"query":"Magento"
+		}`),
+	)
+
+	req.Header.Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	req.Header.Set(
+		"X-API-Key",
+		apiKey,
+	)
+
+	recorder :=
+		httptest.NewRecorder()
+
+	router.ServeHTTP(
+		recorder,
+		req,
+	)
+
+	if recorder.Code !=
+		http.StatusOK {
+
+		t.Fatalf(
+			"expected 200 got %d",
+			recorder.Code,
+		)
+	}
+
+	var response []documents.SearchResponse
+
+	err = json.Unmarshal(
+		recorder.Body.Bytes(),
+		&response,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(response) == 0 {
+
+		t.Fatal(
+			"expected at least one result",
+		)
+	}
+
+	highlights :=
+		response[0].Highlights
+
+	if highlights == nil {
+
+		t.Fatal(
+			"expected highlights",
+		)
+	}
+
+	titleHighlight :=
+		highlights["title"]
+
+	textHighlight :=
+		highlights["text"]
+
+	if titleHighlight == "" &&
+		textHighlight == "" {
+
+		t.Fatal(
+			"expected title or text highlight",
+		)
+	}
+
+	if !strings.Contains(
+		titleHighlight+textHighlight,
+		"<mark>Magento</mark>",
+	) {
+
+		t.Fatalf(
+			"expected highlight containing <mark>Magento</mark>, got title=%q text=%q",
+			titleHighlight,
+			textHighlight,
+		)
+	}
+}
+===== test/integration/search_endpoint_negative_offset_test.go =====
+package integration
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"context"
+
+	"indexer/internal/apikeys"
+	"indexer/internal/server"
+)
+
+func TestSearchNegativeOffset(
+	t *testing.T,
+) {
+
+	db := createDB(t)
+
+	apiKeyRepository :=
+		apikeys.NewRepository(db)
+
+	apiKeyService :=
+		apikeys.NewService(
+			apiKeyRepository,
+		)
+
+	t.Cleanup(func() {
+		_ = apiKeyService.DeleteByNamespace(
+			context.Background(),
+			"search-negative-offset-test",
+		)
+
+		_ = apiKeyService.DeleteByNamespace(
+			context.Background(),
+			"search-negative-offset-test",
+		)
+
+		_ = db.Close()
+	})
+
+	apiKey, err :=
+		apiKeyService.Create(
+			t.Context(),
+			"Search Negative Offset Test",
+			"search-negative-offset-test",
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	app :=
+		server.NewApp(
+			db,
+			apiKeyService,
+			createDocumentHandler(
+				t,
+				db,
+			),
+		)
+
+	router := app.Router()
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/search",
+		strings.NewReader(`{
+			"query":"Magento",
+			"offset":-999,
+			"limit":10
+		}`),
+	)
+
+	req.Header.Set(
+		"X-API-Key",
+		apiKey,
+	)
+
+	req.Header.Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	rec :=
+		httptest.NewRecorder()
+
+	router.ServeHTTP(
+		rec,
+		req,
+	)
+
+	if rec.Code !=
+		http.StatusOK {
+
+		t.Fatalf(
+			"expected 200 got %d",
+			rec.Code,
+		)
+	}
+}
+===== test/integration/search_endpoint_no_results_test.go =====
+package integration
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"context"
+
+	"indexer/internal/apikeys"
+	"indexer/internal/documents"
+	"indexer/internal/opensearch"
+	"indexer/internal/server"
+	"indexer/internal/documentfilters"
+)
+
+func TestSearchEndpointNoResults(
+	t *testing.T,
+) {
+
+	ensureDocumentsIndex(t)
+
+	db := createDB(t)
+
+	cfg := createTestConfig()
+
+	searchClient :=
+		opensearch.NewClient(cfg)
+
+	apiKeyRepository :=
+		apikeys.NewRepository(db)
+
+	apiKeyService :=
+		apikeys.NewService(
+			apiKeyRepository,
+		)
+
+	t.Cleanup(func() {
+
+		_ = apiKeyService.DeleteByNamespace(
+			context.Background(),
+			"search4-test",
+		)
+
+		_ = db.Close()
+	})
+
+	searchService :=
+		opensearch.NewService(
+			searchClient,
+		)
+
+	documentRepository :=
+		documents.NewRepository(db)
+
+	
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
+	documentService :=
+		documents.NewService(
+			documentRepository,
+			filterRepository,
+			searchService,
+		)
+
+	documentHandler :=
+		documents.NewHandler(
+			documentService,
+		)
+
+	apiKey, err :=
+		apiKeyService.Create(
+			t.Context(),
+			"Search Test",
+			"search4-test",
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	app :=
+		server.NewApp(
+			db,
+			apiKeyService,
+			documentHandler,
+		)
+
+	router := app.Router()
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/search",
+		strings.NewReader(`{
+			"query":"DOCUMENTO_QUE_NAO_EXISTE"
+		}`),
+	)
+
+	req.Header.Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	req.Header.Set(
+		"X-API-Key",
+		apiKey,
+	)
+
+	recorder :=
+		httptest.NewRecorder()
+
+	router.ServeHTTP(
+		recorder,
+		req,
+	)
+
+	if recorder.Code !=
+		http.StatusOK {
+
+		t.Fatalf(
+			"expected 200 got %d",
+			recorder.Code,
+		)
+	}
+
+	var response []documents.SearchResponse
+
+	err = json.Unmarshal(
+		recorder.Body.Bytes(),
+		&response,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(response) != 0 {
+
+		t.Fatalf(
+			"expected 0 results got %d",
+			len(response),
+		)
+	}
+}
+===== test/integration/search_endpoint_pagination_test.go =====
+package integration
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"indexer/internal/apikeys"
+	"indexer/internal/documentfilters"
+	"indexer/internal/documents"
+	"indexer/internal/opensearch"
+	"indexer/internal/server"
+)
+
+func TestSearchEndpointPagination(
+	t *testing.T,
+) {
+
+	ensureDocumentsIndex(t)
+
+	db := createDB(t)
+
+	cfg := createTestConfig()
+
+	searchClient :=
+		opensearch.NewClient(cfg)
+
+	apiKeyRepository :=
+		apikeys.NewRepository(db)
+
+	apiKeyService :=
+		apikeys.NewService(
+			apiKeyRepository,
+		)
+
+	searchService :=
+		opensearch.NewService(
+			searchClient,
+		)
+
+	documentRepository :=
+		documents.NewRepository(db)
+
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
+	documentService :=
+		documents.NewService(
+			documentRepository,
+			filterRepository,
+			searchService,
+		)
+
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"pagination-test",
+			"page-1",
+		)
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"pagination-test",
+			"page-2",
+		)
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"pagination-test",
+			"page-3",
+		)
+
+		_ = filterRepository.DeleteByDocumentKeys(
+			context.Background(),
+			[]string{
+				"pagination-test:page-1",
+				"pagination-test:page-2",
+				"pagination-test:page-3",
+			},
+		)
+
+		_ = documentService.DeleteByNamespace(
+			context.Background(),
+			"pagination-test",
+		)
+
+		_ = apiKeyService.DeleteByNamespace(
+			context.Background(),
+			"pagination-test",
+		)
+
+		_ = db.Close()
+	})
+
+	documentHandler :=
+		documents.NewHandler(
+			documentService,
+		)
+
+	apiKey, err :=
+		apiKeyService.Create(
+			t.Context(),
+			"Pagination Test",
+			"pagination-test",
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	documentsToCreate := []*documents.Document{
+		{
+			Namespace:  "pagination-test",
+			ExternalID: "page-1",
+			Title:      "Magento",
+			Text:       "Magento ecommerce",
+			Payload:    []byte(`{"sku":"pagination-test"}`),
+		},
+		{
+			Namespace:  "pagination-test",
+			ExternalID: "page-2",
+			Title:      "Magento",
+			Text:       "Magento ecommerce",
+			Payload:    []byte(`{"sku":"pagination-test"}`),
+		},
+		{
+			Namespace:  "pagination-test",
+			ExternalID: "page-3",
+			Title:      "Magento",
+			Text:       "Magento ecommerce",
+			Payload:    []byte(`{"sku":"pagination-test"}`),
+		},
+	}
+
+	for _, document := range documentsToCreate {
+
+		err = documentService.Upsert(
+			t.Context(),
+			document,
+		)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	app :=
+		server.NewApp(
+			db,
+			apiKeyService,
+			documentHandler,
+		)
+
+	router := app.Router()
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/search",
+		strings.NewReader(`{
+			"query":"Magento",
+			"offset":0,
+			"limit":1
+		}`),
+	)
+
+	req.Header.Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	req.Header.Set(
+		"X-API-Key",
+		apiKey,
+	)
+
+	recorder :=
+		httptest.NewRecorder()
+
+	router.ServeHTTP(
+		recorder,
+		req,
+	)
+
+	if recorder.Code !=
+		http.StatusOK {
+
+		t.Fatalf(
+			"expected 200 got %d",
+			recorder.Code,
+		)
+	}
+
+	var page1 []documents.SearchResponse
+
+	err = json.Unmarshal(
+		recorder.Body.Bytes(),
+		&page1,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(page1) != 1 {
+
+		t.Fatalf(
+			"expected 1 result got %d",
+			len(page1),
+		)
+	}
+
+	req = httptest.NewRequest(
+		http.MethodPost,
+		"/search",
+		strings.NewReader(`{
+			"query":"Magento",
+			"offset":1,
+			"limit":1
+		}`),
+	)
+
+	req.Header.Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	req.Header.Set(
+		"X-API-Key",
+		apiKey,
+	)
+
+	recorder =
+		httptest.NewRecorder()
+
+	router.ServeHTTP(
+		recorder,
+		req,
+	)
+
+	if recorder.Code !=
+		http.StatusOK {
+
+		t.Fatalf(
+			"expected 200 got %d",
+			recorder.Code,
+		)
+	}
+
+	var page2 []documents.SearchResponse
+
+	err = json.Unmarshal(
+		recorder.Body.Bytes(),
+		&page2,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(page2) != 1 {
+
+		t.Fatalf(
+			"expected 1 result got %d",
+			len(page2),
+		)
+	}
+
+	if page1[0].ExternalID ==
+		page2[0].ExternalID {
+
+		t.Fatal(
+			"pagination returned same document",
+		)
+	}
+}
+===== test/integration/search_endpoint_pagination_without_query_test.go =====
+package integration
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"indexer/internal/apikeys"
+	"indexer/internal/documentfilters"
+	"indexer/internal/documents"
+	"indexer/internal/opensearch"
+	"indexer/internal/server"
+)
+
+func TestSearchEndpointPaginationWithoutQuery(
+	t *testing.T,
+) {
+
+	ensureDocumentsIndex(t)
+
+	db := createDB(t)
+
+	cfg := createTestConfig()
+
+	searchClient :=
+		opensearch.NewClient(cfg)
+
+	apiKeyRepository :=
+		apikeys.NewRepository(db)
+
+	apiKeyService :=
+		apikeys.NewService(
+			apiKeyRepository,
+		)
+
+	searchService :=
+		opensearch.NewService(
+			searchClient,
+		)
+
+	documentRepository :=
+		documents.NewRepository(db)
+
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
+	documentService :=
+		documents.NewService(
+			documentRepository,
+			filterRepository,
+			searchService,
+		)
+
+	t.Cleanup(func() {
+
+		for i := 1; i <= 3; i++ {
+
+			_ = opensearch.DeleteDocument(
+				context.Background(),
+				searchClient,
+				"pwq-test",
+				string(rune('0'+i)),
+			)
+		}
+
+		_ = filterRepository.DeleteByDocumentKeys(
+			context.Background(),
+			[]string{
+				"pwq-test:1",
+				"pwq-test:2",
+				"pwq-test:3",
+			},
+		)
+
+		_ = documentService.DeleteByNamespace(
+			context.Background(),
+			"pwq-test",
+		)
+
+		_ = apiKeyService.DeleteByNamespace(
+			context.Background(),
+			"pwq-test",
+		)
+
+		_ = db.Close()
+	})
+
+	documentHandler :=
+		documents.NewHandler(
+			documentService,
+		)
+
+	apiKey, err :=
+		apiKeyService.Create(
+			t.Context(),
+			"Pagination Without Query",
+			"pwq-test",
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 1; i <= 3; i++ {
+
+		err = documentService.Upsert(
+			t.Context(),
+			&documents.Document{
+				Namespace:  "pwq-test",
+				ExternalID: string(rune('0' + i)),
+				Title:      "Documento",
+				Text:       "Texto",
+				Payload:    []byte(`{"sku":"pagination-no-query"}`),
+			},
+		)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	app :=
+		server.NewApp(
+			db,
+			apiKeyService,
+			documentHandler,
+		)
+
+	router := app.Router()
+
+	req1 := httptest.NewRequest(
+		http.MethodPost,
+		"/search",
+		strings.NewReader(`{
+			"filters":{
+				"sku":"pagination-no-query"
+			},
+			"offset":0,
+			"limit":1
+		}`),
+	)
+
+	req1.Header.Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	req1.Header.Set(
+		"X-API-Key",
+		apiKey,
+	)
+
+	rec1 :=
+		httptest.NewRecorder()
+
+	router.ServeHTTP(
+		rec1,
+		req1,
+	)
+
+	if rec1.Code !=
+		http.StatusOK {
+
+		t.Fatalf(
+			"expected 200 got %d",
+			rec1.Code,
+		)
+	}
+
+	var page1 []documents.SearchResponse
+
+	err = json.Unmarshal(
+		rec1.Body.Bytes(),
+		&page1,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req2 := httptest.NewRequest(
+		http.MethodPost,
+		"/search",
+		strings.NewReader(`{
+			"filters":{
+				"sku":"pagination-no-query"
+			},
+			"offset":1,
+			"limit":1
+		}`),
+	)
+
+	req2.Header.Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	req2.Header.Set(
+		"X-API-Key",
+		apiKey,
+	)
+
+	rec2 :=
+		httptest.NewRecorder()
+
+	router.ServeHTTP(
+		rec2,
+		req2,
+	)
+
+	if rec2.Code !=
+		http.StatusOK {
+
+		t.Fatalf(
+			"expected 200 got %d",
+			rec2.Code,
+		)
+	}
+
+	var page2 []documents.SearchResponse
+
+	err = json.Unmarshal(
+		rec2.Body.Bytes(),
+		&page2,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(page1) != 1 {
+
+		t.Fatalf(
+			"expected 1 result got %d",
+			len(page1),
+		)
+	}
+
+	if len(page2) != 1 {
+
+		t.Fatalf(
+			"expected 1 result got %d",
+			len(page2),
+		)
+	}
+
+	if page1[0].ExternalID ==
+		page2[0].ExternalID {
+
+		t.Fatal(
+			"pagination returned same document",
+		)
+	}
+}
+===== test/integration/search_endpoint_test.go =====
+package integration
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"indexer/internal/apikeys"
+	"indexer/internal/documentfilters"
+	"indexer/internal/documents"
+	"indexer/internal/opensearch"
+	"indexer/internal/server"
+)
+
+func TestSearchEndpoint(
+	t *testing.T,
+) {
+
+	ensureDocumentsIndex(t)
+
+	db := createDB(t)
+
+	cfg := createTestConfig()
+
+	searchClient :=
+		opensearch.NewClient(cfg)
+
+	apiKeyRepository :=
+		apikeys.NewRepository(db)
+
+	apiKeyService :=
+		apikeys.NewService(
+			apiKeyRepository,
+		)
+
+	searchService :=
+		opensearch.NewService(
+			searchClient,
+		)
+
+	documentRepository :=
+		documents.NewRepository(db)
+
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
+	documentService :=
+		documents.NewService(
+			documentRepository,
+			filterRepository,
+			searchService,
+		)
+
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"search2-test",
+			"666",
+		)
+
+		_ = filterRepository.DeleteByDocumentKeys(
+			context.Background(),
+			[]string{
+				"search2-test:666",
+			},
+		)
+
+		_ = documentService.DeleteByNamespace(
+			context.Background(),
+			"search2-test",
+		)
+
+		_ = apiKeyService.DeleteByNamespace(
+			context.Background(),
+			"search2-test",
+		)
+
+		_ = db.Close()
+	})
+
+	documentHandler :=
+		documents.NewHandler(
+			documentService,
+		)
+
+	apiKey, err :=
+		apiKeyService.Create(
+			t.Context(),
+			"Search Test",
+			"search2-test",
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	document := &documents.Document{
+		Namespace:  "search2-test",
+		ExternalID: "666",
+		Title:      "CRM",
+		Text:       "CRM ecommerce",
+		Payload: []byte(`{
+			"sku":"crm-commerce-test-payload-sku"
+		}`),
+	}
+
+	err = documentService.Upsert(
+		t.Context(),
+		document,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	app :=
+		server.NewApp(
+			db,
+			apiKeyService,
+			documentHandler,
+		)
+
+	router := app.Router()
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/search",
+		strings.NewReader(`{
+			"query":"CRM"
+		}`),
+	)
+
+	req.Header.Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	req.Header.Set(
+		"X-API-Key",
+		apiKey,
+	)
+
+	recorder :=
+		httptest.NewRecorder()
+
+	router.ServeHTTP(
+		recorder,
+		req,
+	)
+
+	if recorder.Code !=
+		http.StatusOK {
+
+		t.Fatalf(
+			"expected 200 got %d",
+			recorder.Code,
+		)
+	}
+
+	var response []documents.SearchResponse
+
+	err = json.Unmarshal(
+		recorder.Body.Bytes(),
+		&response,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(response) != 1 {
+
+		t.Fatalf(
+			"expected 1 result got %d",
+			len(response),
+		)
+	}
+
+	if response[0].ExternalID !=
+		"666" {
+
+		t.Fatal(
+			"unexpected external id",
+		)
+	}
+
+	if response[0].Title !=
+		"CRM" {
+
+		t.Fatal(
+			"unexpected title",
+		)
+	}
+}
+===== test/integration/search_endpoint_without_query_test.go =====
+package integration
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"indexer/internal/apikeys"
+	"indexer/internal/documentfilters"
+	"indexer/internal/documents"
+	"indexer/internal/opensearch"
+	"indexer/internal/server"
+)
+
+func TestSearchEndpointWithoutQuery(
+	t *testing.T,
+) {
+
+	ensureDocumentsIndex(t)
+
+	db := createDB(t)
+
+	cfg := createTestConfig()
+
+	searchClient :=
+		opensearch.NewClient(cfg)
+
+	apiKeyRepository :=
+		apikeys.NewRepository(db)
+
+	apiKeyService :=
+		apikeys.NewService(
+			apiKeyRepository,
+		)
+
+	searchService :=
+		opensearch.NewService(
+			searchClient,
+		)
+
+	documentRepository :=
+		documents.NewRepository(db)
+
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
+	documentService :=
+		documents.NewService(
+			documentRepository,
+			filterRepository,
+			searchService,
+		)
+
+	t.Cleanup(func() {
+
+		_ = opensearch.DeleteDocument(
+			context.Background(),
+			searchClient,
+			"search3-test",
+			"only-filter",
+		)
+
+		_ = filterRepository.DeleteByDocumentKeys(
+			context.Background(),
+			[]string{
+				"search3-test:only-filter",
+			},
+		)
+
+		_ = documentService.DeleteByNamespace(
+			context.Background(),
+			"search3-test",
+		)
+
+		_ = apiKeyService.DeleteByNamespace(
+			context.Background(),
+			"search3-test",
+		)
+
+		_ = db.Close()
+	})
+
+	documentHandler :=
+		documents.NewHandler(
+			documentService,
+		)
+
+	apiKey, err :=
+		apiKeyService.Create(
+			t.Context(),
+			"Search Test",
+			"search3-test",
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = documentService.Upsert(
+		t.Context(),
+		&documents.Document{
+			Namespace:  "search3-test",
+			ExternalID: "only-filter",
+			Title:      "Outro título",
+			Text:       "Outro texto",
+			Payload:    []byte(`{"sku":"only-filter-test"}`),
+		},
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	app :=
+		server.NewApp(
+			db,
+			apiKeyService,
+			documentHandler,
+		)
+
+	router := app.Router()
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/search",
+		strings.NewReader(`{
+			"filters":{
+				"sku":"only-filter-test"
+			}
+		}`),
+	)
+
+	req.Header.Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	req.Header.Set(
+		"X-API-Key",
+		apiKey,
+	)
+
+	recorder :=
+		httptest.NewRecorder()
+
+	router.ServeHTTP(
+		recorder,
+		req,
+	)
+
+	if recorder.Code !=
+		http.StatusOK {
+
+		t.Fatalf(
+			"expected 200 got %d",
+			recorder.Code,
+		)
+	}
+
+	var response []documents.SearchResponse
+
+	err = json.Unmarshal(
+		recorder.Body.Bytes(),
+		&response,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(response) != 1 {
+
+		t.Fatalf(
+			"expected 1 result got %d",
+			len(response),
+		)
+	}
+
+	if response[0].ExternalID !=
+		"only-filter" {
+
+		t.Fatal(
+			"wrong document returned",
+		)
+	}
+}
+========================================
+TESTIFY SUITES
+========================================
+
+========================================
+INDEXDOCUMENT
+========================================
+test/integration/opensearch_document_test.go:func TestIndexDocument(
+test/integration/opensearch_document_test.go:	err := opensearch.IndexDocument(
+test/integration/opensearch_search_test.go:	err := opensearch.IndexDocument(
+internal/documents/sync_service.go:	IndexDocument(
+internal/documents/sync_service.go:		err = s.indexer.IndexDocument(
+internal/opensearch/service.go:func (s *Service) IndexDocument(
+internal/opensearch/service.go:	return IndexDocument(
+internal/opensearch/document.go:func IndexDocument(
+
+========================================
+SEARCH(
+========================================
+test/integration/document_service_delete_test.go:		opensearch.Search(
+test/integration/document_service_search_test.go:func TestDocumentServiceSearch(
+test/integration/document_service_search_test.go:		documentService.Search(
+test/integration/opensearch_search_test.go:		opensearch.Search(
+test/integration/document_service_test.go:		opensearch.Search(
+test/integration/document_service_search_filter_test.go:		documentService.Search(
+
+========================================
+UPSERT(
+========================================
+test/integration/document_repository_search_test.go:	err := repository.Upsert(
+test/integration/document_repository_search_test.go:	err = repository.Upsert(
+test/integration/document_service_delete_test.go:	err := documentService.Upsert(
+test/integration/search_endpoint_pagination_test.go:		err = documentService.Upsert(
+test/integration/document_service_search_test.go:	err := documentService.Upsert(
+test/integration/document_service_search_test.go:	err = documentService.Upsert(
+test/integration/search_endpoint_without_query_test.go:	err = documentService.Upsert(
+test/integration/document_service_test.go:func TestDocumentServiceUpsert(
+test/integration/document_service_test.go:	err := documentService.Upsert(
+test/integration/search_endpoint_test.go:	err = documentService.Upsert(
+test/integration/search_endpoint_fuzzy_test.go:	err = documentService.Upsert(
+test/integration/search_endpoint_filters_test.go:	err = documentService.Upsert(
+test/integration/search_endpoint_filters_test.go:	err = documentService.Upsert(
+test/integration/search_endpoint_highlight_test.go:	err = documentService.Upsert(
+test/integration/document_service_search_filter_test.go:	err := documentService.Upsert(
+test/integration/document_service_search_filter_test.go:	err = documentService.Upsert(
+test/integration/document_filters_repository_test.go:	err := documentService.Upsert(
+test/integration/search_endpoint_pagination_without_query_test.go:		err = documentService.Upsert(
+
+========================================
+DELETE(
+========================================
+test/integration/document_service_delete_test.go:func TestDocumentServiceDelete(
+test/integration/document_service_delete_test.go:	err = documentService.Delete(

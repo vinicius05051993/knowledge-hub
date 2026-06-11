@@ -118,6 +118,11 @@ func TestSearchEndpointHighlight(
 		t.Fatal(err)
 	}
 
+	syncDocuments(
+		t,
+		db,
+	)
+
 	app :=
 		server.NewApp(
 			db,

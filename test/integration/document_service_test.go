@@ -78,6 +78,11 @@ func TestDocumentServiceUpsert(
 		t.Fatal(err)
 	}
 
+	syncDocuments(
+		t,
+		db,
+	)
+
 	if document.DocumentKey !=
 		"test:service-test" {
 

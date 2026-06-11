@@ -27,6 +27,9 @@ func (r *Repository) Upsert(
 	doc *Document,
 ) error {
 
+	doc.SyncStatus = SyncStatusPendingUpsert
+	doc.DeletedAt = nil
+
 	query := `
 	INSERT INTO documents (
 		document_key,
@@ -35,16 +38,20 @@ func (r *Repository) Upsert(
 		title,
 		text,
 		payload,
+		sync_status,
+		deleted_at,
 		created_at,
 		updated_at
 	)
 	VALUES (
-		?,?,?,?,?,?,?,?
+		?,?,?,?,?,?,?,?,?,?
 	)
 	ON DUPLICATE KEY UPDATE
 		title = VALUES(title),
 		text = VALUES(text),
 		payload = VALUES(payload),
+		sync_status = VALUES(sync_status),
+		deleted_at = VALUES(deleted_at),
 		updated_at = VALUES(updated_at)
 	`
 
@@ -57,6 +64,8 @@ func (r *Repository) Upsert(
 		doc.Title,
 		doc.Text,
 		doc.Payload,
+		doc.SyncStatus,
+		doc.DeletedAt,
 		doc.CreatedAt,
 		doc.UpdatedAt,
 	)
@@ -75,6 +84,7 @@ func (r *Repository) FindByExternalID(
 	FROM documents
 	WHERE namespace = ?
 	AND external_id = ?
+	AND deleted_at IS NULL
 	LIMIT 1
 	`
 
@@ -109,6 +119,7 @@ func (r *Repository) FindByDocumentKeys(
 		SELECT *
 		FROM documents
 		WHERE document_key IN (?)
+		AND deleted_at IS NULL
 		`,
 		documentKeys,
 	)
@@ -145,10 +156,13 @@ func (r *Repository) DeleteByNamespace(
 	_, err := r.db.ExecContext(
 		ctx,
 		`
-		DELETE
-		FROM documents
+		UPDATE documents
+		SET
+			sync_status = ?,
+			deleted_at = NOW()
 		WHERE namespace = ?
 		`,
+		SyncStatusPendingDelete,
 		namespace,
 	)
 
@@ -167,10 +181,14 @@ func (r *Repository) DeleteByExternalIDs(
 
 	query, args, err := sqlx.In(
 		`
-		DELETE FROM documents
+		UPDATE documents
+		SET
+			sync_status = ?,
+			deleted_at = NOW()
 		WHERE namespace = ?
 		AND external_id IN (?)
 		`,
+		SyncStatusPendingDelete,
 		namespace,
 		externalIDs,
 	)
@@ -204,6 +222,7 @@ func (r *Repository) Search(
 	SELECT *
 	FROM documents
 	WHERE 1 = 1
+	AND deleted_at IS NULL
 	`
 
 	args := make(
@@ -292,4 +311,103 @@ func (r *Repository) Search(
 	}
 
 	return documents, nil
+}
+
+func (r *Repository) FindPendingUpserts(
+	ctx context.Context,
+	limit int,
+) ([]Document, error) {
+
+	query := `
+	SELECT *
+	FROM documents
+	WHERE sync_status = ?
+	ORDER BY id
+	LIMIT ?
+	`
+
+	var documents []Document
+
+	err := r.db.SelectContext(
+		ctx,
+		&documents,
+		query,
+		SyncStatusPendingUpsert,
+		limit,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return documents, nil
+}
+
+func (r *Repository) FindPendingDeletes(
+	ctx context.Context,
+	limit int,
+) ([]Document, error) {
+
+	query := `
+	SELECT *
+	FROM documents
+	WHERE sync_status = ?
+	ORDER BY id
+	LIMIT ?
+	`
+
+	var documents []Document
+
+	err := r.db.SelectContext(
+		ctx,
+		&documents,
+		query,
+		SyncStatusPendingDelete,
+		limit,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return documents, nil
+}
+
+func (r *Repository) MarkSynced(
+	ctx context.Context,
+	documentKey string,
+) error {
+
+	_, err := r.db.ExecContext(
+		ctx,
+		`
+		UPDATE documents
+		SET
+			sync_status = ?,
+			deleted_at = NULL
+		WHERE document_key = ?
+		`,
+		SyncStatusSynced,
+		documentKey,
+	)
+
+	return err
+}
+
+func (r *Repository) DeleteByDocumentKey(
+	ctx context.Context,
+	documentKey string,
+) error {
+
+	_, err := r.db.ExecContext(
+		ctx,
+		`
+		DELETE
+		FROM documents
+		WHERE document_key = ?
+		`,
+		documentKey,
+	)
+
+	return err
 }

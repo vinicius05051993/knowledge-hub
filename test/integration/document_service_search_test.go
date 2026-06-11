@@ -95,6 +95,11 @@ func TestDocumentServiceSearch(
 		t.Fatal(err)
 	}
 
+	syncDocuments(
+		t,
+		db,
+	)
+
 	results, err :=
 		documentService.Search(
 			context.Background(),

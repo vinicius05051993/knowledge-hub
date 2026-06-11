@@ -3,13 +3,13 @@ package integration
 import (
 	"context"
 	"testing"
+	"time"
 
 	"indexer/internal/documents"
 	"indexer/internal/opensearch"
-	"indexer/internal/documentfilters"
 )
 
-func TestDocumentServiceDelete(
+func TestSyncServiceProcessPendingDeletes(
 	t *testing.T,
 ) {
 
@@ -32,29 +32,28 @@ func TestDocumentServiceDelete(
 	documentRepository :=
 		documents.NewRepository(db)
 
-	filterRepository :=
-		documentfilters.NewRepository(
-			db,
-		)
-
-	documentService :=
-		documents.NewService(
+	syncService :=
+		documents.NewSyncService(
 			documentRepository,
-			filterRepository,
 			searchService,
 		)
 
+	now := time.Now().UTC()
+
 	document := &documents.Document{
-		Namespace:  "test",
-		ExternalID: "delete-test",
-		Title:      "Magento Delete",
-		Text:       "Document to be deleted",
-		Payload: []byte(`{
-			"id":123
-		}`),
+		DocumentKey: "sync-test:test-delete",
+
+		Namespace:  "sync-test",
+		ExternalID: "test-delete",
+
+		Title: "Delete Test",
+		Text:  "Document To Delete",
+
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
-	err := documentService.Upsert(
+	err := documentRepository.Upsert(
 		context.Background(),
 		document,
 	)
@@ -63,11 +62,20 @@ func TestDocumentServiceDelete(
 		t.Fatal(err)
 	}
 
-	err = documentService.Delete(
+	err = syncService.ProcessPendingUpserts(
 		context.Background(),
-		"test",
+		100,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = documentRepository.DeleteByExternalIDs(
+		context.Background(),
+		"sync-test",
 		[]string{
-			"delete-test",
+			"test-delete",
 		},
 	)
 
@@ -75,30 +83,33 @@ func TestDocumentServiceDelete(
 		t.Fatal(err)
 	}
 
-	syncDocuments(
-		t,
-		db,
+	err = syncService.ProcessPendingDeletes(
+		context.Background(),
+		100,
 	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	_, err =
 		documentRepository.FindByExternalID(
 			context.Background(),
-			"test",
-			"delete-test",
+			"sync-test",
+			"test-delete",
 		)
 
 	if err == nil {
 
 		t.Fatal(
-			"document should not exist in mysql",
+			"document should have been deleted",
 		)
 	}
 
 	results, err :=
-		opensearch.Search(
+		searchService.Search(
 			context.Background(),
-			searchClient,
-			"Magento Delete",
+			"Delete",
 			0,
 			10,
 		)
@@ -110,10 +121,10 @@ func TestDocumentServiceDelete(
 	for _, result := range results {
 
 		if result.DocumentKey ==
-			"test:delete-test" {
+			"sync-test:test-delete" {
 
 			t.Fatal(
-				"document should not exist in opensearch",
+				"document still exists in opensearch",
 			)
 		}
 	}
