@@ -4,6 +4,9 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"indexer/internal/config"
@@ -80,15 +83,45 @@ func main() {
 		"sync worker started",
 	)
 
+	stop := make(
+		chan os.Signal,
+		1,
+	)
+
+	signal.Notify(
+		stop,
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
+
+	ticker := time.NewTicker(
+		syncInterval,
+	)
+
+	defer ticker.Stop()
+
 	for {
 
-		runCycle(
-			syncService,
-		)
+		select {
 
-		time.Sleep(
-			syncInterval,
-		)
+		case <-stop:
+
+			log.Println(
+				"shutdown signal received",
+			)
+
+			log.Println(
+				"sync worker stopped",
+			)
+
+			return
+
+		case <-ticker.C:
+
+			runCycle(
+				syncService,
+			)
+		}
 	}
 }
 
