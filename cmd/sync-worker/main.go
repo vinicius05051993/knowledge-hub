@@ -100,7 +100,7 @@ func main() {
 		}
 
 		time.Sleep(
-			5 * time.Second,
+			30 * time.Second,
 		)
 	}
 }
