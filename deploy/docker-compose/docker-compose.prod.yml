@@ -15,12 +15,6 @@ services:
     ports:
       - "8080:8080"
 
-    logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "5"
-
   sync-worker:
     image: ghcr.io/vinicius05051993/knowledge-hub:latest
 
@@ -35,32 +29,17 @@ services:
       - mysql
       - opensearch
 
-    logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "5"
-
   mysql:
     image: mysql:8.4
 
     restart: unless-stopped
 
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: indexer
-
-    ports:
-      - "3306:3306"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
 
     volumes:
       - mysql_data:/var/lib/mysql
-
-    logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "5"
 
   opensearch:
     image: opensearchproject/opensearch:3
@@ -70,21 +49,10 @@ services:
     environment:
       discovery.type: single-node
       DISABLE_SECURITY_PLUGIN: "true"
-
       OPENSEARCH_JAVA_OPTS: "-Xms1g -Xmx1g"
-
-    ports:
-      - "9200:9200"
-      - "9600:9600"
 
     volumes:
       - opensearch_data:/usr/share/opensearch/data
-
-    logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "5"
 
 volumes:
 
