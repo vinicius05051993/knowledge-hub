@@ -60,5 +60,10 @@ func (s *Server) Router() *http.ServeMux {
 		),
 	)
 
+	router.Handle(
+		"/metrics",
+		MetricsHandler(),
+	)
+
 	return router
 }

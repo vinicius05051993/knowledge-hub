@@ -8,13 +8,16 @@ import (
 	"indexer/internal/apikeys"
 	"indexer/internal/config"
 	"indexer/internal/database"
+	"indexer/internal/documentfilters"
 	"indexer/internal/documents"
+	"indexer/internal/metrics"
 	"indexer/internal/opensearch"
 	"indexer/internal/server"
-	"indexer/internal/documentfilters"
 )
 
 func main() {
+
+	metrics.Register()
 
 	cfg := config.Load()
 

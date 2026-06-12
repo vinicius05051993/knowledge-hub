@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"indexer/internal/auth"
+	"indexer/internal/metrics"
 )
 
 type SearchService interface {
@@ -80,6 +81,12 @@ func (h *Handler) UpsertDocuments(
 		return
 	}
 
+	metrics.UpsertDocumentsTotal.Add(
+		float64(
+			len(request.Documents),
+		),
+	)
+
 	for _, item := range request.Documents {
 
 		var payload []byte
@@ -103,11 +110,11 @@ func (h *Handler) UpsertDocuments(
 		}
 
 		document := &Document{
-			Namespace: authContext.Namespace,
+			Namespace:  authContext.Namespace,
 			ExternalID: item.ExternalID,
-			Title: item.Title,
-			Text: item.Text,
-			Payload: payload,
+			Title:      item.Title,
+			Text:       item.Text,
+			Payload:    payload,
 		}
 
 		err = h.service.Upsert(
@@ -181,6 +188,12 @@ func (h *Handler) DeleteDocuments(
 
 		return
 	}
+
+	metrics.DeleteDocumentsTotal.Add(
+		float64(
+			len(request.ExternalIDs),
+		),
+	)
 
 	err = h.service.Delete(
 		r.Context(),
