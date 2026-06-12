@@ -46,6 +46,18 @@ func (s *SyncService) ProcessPendingUpserts(
 	limit int,
 ) error {
 
+	pending, err :=
+		s.repository.CountPendingUpserts(
+			ctx,
+		)
+
+	if err == nil {
+
+		metrics.PendingUpserts.Set(
+			float64(pending),
+		)
+	}
+
 	documents, err :=
 		s.repository.FindPendingUpserts(
 			ctx,
@@ -53,10 +65,16 @@ func (s *SyncService) ProcessPendingUpserts(
 		)
 
 	if err != nil {
+
+		metrics.SyncUpsertErrorsTotal.Inc()
+
 		return err
 	}
 
 	if len(documents) == 0 {
+
+		metrics.PendingUpserts.Set(0)
+
 		return nil
 	}
 
@@ -115,6 +133,9 @@ func (s *SyncService) ProcessPendingUpserts(
 		)
 
 		if err != nil {
+
+			metrics.SyncUpsertErrorsTotal.Inc()
+
 			return err
 		}
 
@@ -125,16 +146,49 @@ func (s *SyncService) ProcessPendingUpserts(
 		)
 	}
 
-	return s.repository.MarkSyncedByDocumentKeys(
+	err = s.repository.MarkSyncedByDocumentKeys(
 		ctx,
 		documentKeys,
 	)
+
+	if err != nil {
+
+		metrics.SyncUpsertErrorsTotal.Inc()
+
+		return err
+	}
+
+	pending, err =
+		s.repository.CountPendingUpserts(
+			ctx,
+		)
+
+	if err == nil {
+
+		metrics.PendingUpserts.Set(
+			float64(pending),
+		)
+	}
+
+	return nil
 }
 
 func (s *SyncService) ProcessPendingDeletes(
 	ctx context.Context,
 	limit int,
 ) error {
+
+	pending, err :=
+		s.repository.CountPendingDeletes(
+			ctx,
+		)
+
+	if err == nil {
+
+		metrics.PendingDeletes.Set(
+			float64(pending),
+		)
+	}
 
 	documents, err :=
 		s.repository.FindPendingDeletes(
@@ -143,10 +197,16 @@ func (s *SyncService) ProcessPendingDeletes(
 		)
 
 	if err != nil {
+
+		metrics.SyncDeleteErrorsTotal.Inc()
+
 		return err
 	}
 
 	if len(documents) == 0 {
+
+		metrics.PendingDeletes.Set(0)
+
 		return nil
 	}
 
@@ -172,6 +232,9 @@ func (s *SyncService) ProcessPendingDeletes(
 	)
 
 	if err != nil {
+
+		metrics.SyncDeleteErrorsTotal.Inc()
+
 		return err
 	}
 
@@ -181,8 +244,29 @@ func (s *SyncService) ProcessPendingDeletes(
 		),
 	)
 
-	return s.repository.DeleteByDocumentKeys(
+	err = s.repository.DeleteByDocumentKeys(
 		ctx,
 		documentKeys,
 	)
+
+	if err != nil {
+
+		metrics.SyncDeleteErrorsTotal.Inc()
+
+		return err
+	}
+
+	pending, err =
+		s.repository.CountPendingDeletes(
+			ctx,
+		)
+
+	if err == nil {
+
+		metrics.PendingDeletes.Set(
+			float64(pending),
+		)
+	}
+
+	return nil
 }

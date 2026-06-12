@@ -48,6 +48,8 @@ func (h *Handler) Search(
 
 	if err != nil {
 
+		metrics.SearchErrorsTotal.Inc()
+
 		http.Error(
 			w,
 			"invalid request",
@@ -77,6 +79,8 @@ func (h *Handler) Search(
 		)
 
 	if err != nil {
+
+		metrics.SearchErrorsTotal.Inc()
 
 		http.Error(
 			w,

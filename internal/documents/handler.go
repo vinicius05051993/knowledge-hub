@@ -53,6 +53,8 @@ func (h *Handler) UpsertDocuments(
 
 	if authContext == nil {
 
+		metrics.UpsertErrorsTotal.Inc()
+
 		http.Error(
 			w,
 			"unauthorized",
@@ -71,6 +73,8 @@ func (h *Handler) UpsertDocuments(
 	)
 
 	if err != nil {
+
+		metrics.UpsertErrorsTotal.Inc()
 
 		http.Error(
 			w,
@@ -99,6 +103,8 @@ func (h *Handler) UpsertDocuments(
 
 			if err != nil {
 
+				metrics.UpsertErrorsTotal.Inc()
+
 				http.Error(
 					w,
 					"invalid payload",
@@ -123,6 +129,8 @@ func (h *Handler) UpsertDocuments(
 		)
 
 		if err != nil {
+
+			metrics.UpsertErrorsTotal.Inc()
 
 			http.Error(
 				w,
@@ -161,6 +169,8 @@ func (h *Handler) DeleteDocuments(
 
 	if authContext == nil {
 
+		metrics.DeleteErrorsTotal.Inc()
+
 		http.Error(
 			w,
 			"unauthorized",
@@ -179,6 +189,8 @@ func (h *Handler) DeleteDocuments(
 	)
 
 	if err != nil {
+
+		metrics.DeleteErrorsTotal.Inc()
 
 		http.Error(
 			w,
@@ -202,6 +214,8 @@ func (h *Handler) DeleteDocuments(
 	)
 
 	if err != nil {
+
+		metrics.DeleteErrorsTotal.Inc()
 
 		http.Error(
 			w,

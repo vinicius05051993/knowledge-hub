@@ -372,6 +372,54 @@ func (r *Repository) FindPendingDeletes(
 	return documents, nil
 }
 
+func (r *Repository) CountPendingUpserts(
+	ctx context.Context,
+) (int, error) {
+
+	var count int
+
+	err := r.db.GetContext(
+		ctx,
+		&count,
+		`
+		SELECT COUNT(*)
+		FROM documents
+		WHERE sync_status = ?
+		`,
+		SyncStatusPendingUpsert,
+	)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func (r *Repository) CountPendingDeletes(
+	ctx context.Context,
+) (int, error) {
+
+	var count int
+
+	err := r.db.GetContext(
+		ctx,
+		&count,
+		`
+		SELECT COUNT(*)
+		FROM documents
+		WHERE sync_status = ?
+		`,
+		SyncStatusPendingDelete,
+	)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
 func (r *Repository) MarkSyncedByDocumentKeys(
 	ctx context.Context,
 	documentKeys []string,
