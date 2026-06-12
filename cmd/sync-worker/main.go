@@ -3,15 +3,36 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"time"
 
 	"indexer/internal/config"
 	"indexer/internal/database"
 	"indexer/internal/documents"
+	"indexer/internal/metrics"
 	"indexer/internal/opensearch"
+	"indexer/internal/server"
 )
 
 func main() {
+
+	metrics.Register()
+
+	go func() {
+
+		log.Println(
+			"worker metrics listening on :9090",
+		)
+
+		err := http.ListenAndServe(
+			":9090",
+			server.MetricsHandler(),
+		)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	cfg := config.Load()
 

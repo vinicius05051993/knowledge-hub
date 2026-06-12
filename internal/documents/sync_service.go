@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"indexer/internal/metrics"
 	"indexer/internal/opensearch"
 )
 
@@ -116,6 +117,12 @@ func (s *SyncService) ProcessPendingUpserts(
 		if err != nil {
 			return err
 		}
+
+		metrics.SyncUpsertsTotal.Add(
+			float64(
+				len(bulkDocuments),
+			),
+		)
 	}
 
 	return s.repository.MarkSyncedByDocumentKeys(
@@ -167,6 +174,12 @@ func (s *SyncService) ProcessPendingDeletes(
 	if err != nil {
 		return err
 	}
+
+	metrics.SyncDeletesTotal.Add(
+		float64(
+			len(documentKeys),
+		),
+	)
 
 	return s.repository.DeleteByDocumentKeys(
 		ctx,

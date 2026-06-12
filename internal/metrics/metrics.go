@@ -36,6 +36,22 @@ var (
 				Help: "Total documents deleted",
 			},
 		)
+
+	SyncUpsertsTotal =
+		prometheus.NewCounter(
+			prometheus.CounterOpts{
+				Name: "indexer_sync_upserts_total",
+				Help: "Total documents synchronized to OpenSearch",
+			},
+		)
+
+	SyncDeletesTotal =
+		prometheus.NewCounter(
+			prometheus.CounterOpts{
+				Name: "indexer_sync_deletes_total",
+				Help: "Total documents deleted from OpenSearch",
+			},
+		)
 )
 
 func Register() {
@@ -54,5 +70,13 @@ func Register() {
 
 	prometheus.MustRegister(
 		DeleteDocumentsTotal,
+	)
+
+	prometheus.MustRegister(
+		SyncUpsertsTotal,
+	)
+
+	prometheus.MustRegister(
+		SyncDeletesTotal,
 	)
 }
