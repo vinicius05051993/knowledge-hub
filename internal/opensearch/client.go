@@ -3,6 +3,7 @@ package opensearch
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"indexer/internal/config"
 )
@@ -24,7 +25,9 @@ func NewClient(
 			cfg.OpenSearchPort,
 		),
 
-		httpClient: &http.Client{},
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
 	}
 }
 

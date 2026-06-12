@@ -14,6 +14,11 @@ import (
 	"indexer/internal/server"
 )
 
+const (
+	batchSize    = 100
+	syncInterval = 30 * time.Second
+)
+
 func main() {
 
 	metrics.Register()
@@ -77,34 +82,56 @@ func main() {
 
 	for {
 
-		ctx := context.Background()
-
-		err := syncService.ProcessPendingUpserts(
-			ctx,
-			100,
+		runCycle(
+			syncService,
 		)
-
-		if err != nil {
-			log.Printf(
-				"upsert sync error: %v",
-				err,
-			)
-		}
-
-		err = syncService.ProcessPendingDeletes(
-			ctx,
-			100,
-		)
-
-		if err != nil {
-			log.Printf(
-				"delete sync error: %v",
-				err,
-			)
-		}
 
 		time.Sleep(
-			30 * time.Second,
+			syncInterval,
+		)
+	}
+}
+
+func runCycle(
+	syncService *documents.SyncService,
+) {
+
+	defer func() {
+
+		if r := recover(); r != nil {
+
+			log.Printf(
+				"worker panic recovered: %v",
+				r,
+			)
+		}
+	}()
+
+	ctx := context.Background()
+
+	err := syncService.ProcessPendingUpserts(
+		ctx,
+		batchSize,
+	)
+
+	if err != nil {
+
+		log.Printf(
+			"upsert sync error: %v",
+			err,
+		)
+	}
+
+	err = syncService.ProcessPendingDeletes(
+		ctx,
+		batchSize,
+	)
+
+	if err != nil {
+
+		log.Printf(
+			"delete sync error: %v",
+			err,
 		)
 	}
 }
