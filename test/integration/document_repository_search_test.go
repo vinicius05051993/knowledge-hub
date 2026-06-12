@@ -14,7 +14,10 @@ func TestFindByDocumentKeys(
 
 	db := createDB(t)
 
-	defer db.Close()
+	t.Cleanup(func() {
+
+		_ = db.Close()
+	})
 
 	repository :=
 		documents.NewRepository(db)

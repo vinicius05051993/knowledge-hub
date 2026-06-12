@@ -373,40 +373,74 @@ func (r *Repository) FindPendingDeletes(
 	return documents, nil
 }
 
-func (r *Repository) MarkSynced(
+func (r *Repository) MarkSyncedByDocumentKeys(
 	ctx context.Context,
-	documentKey string,
+	documentKeys []string,
 ) error {
 
-	_, err := r.db.ExecContext(
-		ctx,
+	if len(documentKeys) == 0 {
+		return nil
+	}
+
+	query, args, err := sqlx.In(
 		`
 		UPDATE documents
 		SET
 			sync_status = ?,
 			deleted_at = NULL
-		WHERE document_key = ?
+		WHERE document_key IN (?)
 		`,
 		SyncStatusSynced,
-		documentKey,
+		documentKeys,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	query = r.db.Rebind(
+		query,
+	)
+
+	_, err = r.db.ExecContext(
+		ctx,
+		query,
+		args...,
 	)
 
 	return err
 }
 
-func (r *Repository) DeleteByDocumentKey(
+func (r *Repository) DeleteByDocumentKeys(
 	ctx context.Context,
-	documentKey string,
+	documentKeys []string,
 ) error {
 
-	_, err := r.db.ExecContext(
-		ctx,
+	if len(documentKeys) == 0 {
+		return nil
+	}
+
+	query, args, err := sqlx.In(
 		`
 		DELETE
 		FROM documents
-		WHERE document_key = ?
+		WHERE document_key IN (?)
 		`,
-		documentKey,
+		documentKeys,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	query = r.db.Rebind(
+		query,
+	)
+
+	_, err = r.db.ExecContext(
+		ctx,
+		query,
+		args...,
 	)
 
 	return err

@@ -16,6 +16,11 @@ type APIKeyRepository struct {
 		ctx context.Context,
 		apiKey *apikeys.APIKey,
 	) error
+
+	DeleteByNamespaceFunc func(
+		ctx context.Context,
+		namespace string,
+	) error
 }
 
 func (m *APIKeyRepository) FindByHash(
@@ -41,5 +46,20 @@ func (m *APIKeyRepository) Create(
 	return m.CreateFunc(
 		ctx,
 		apiKey,
+	)
+}
+
+func (m *APIKeyRepository) DeleteByNamespace(
+	ctx context.Context,
+	namespace string,
+) error {
+
+	if m.DeleteByNamespaceFunc == nil {
+		return nil
+	}
+
+	return m.DeleteByNamespaceFunc(
+		ctx,
+		namespace,
 	)
 }

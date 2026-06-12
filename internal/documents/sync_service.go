@@ -65,6 +65,13 @@ func (s *SyncService) ProcessPendingUpserts(
 			len(documents),
 		)
 
+	documentKeys :=
+		make(
+			[]string,
+			0,
+			len(documents),
+		)
+
 	for _, document := range documents {
 
 		bulkDocuments =
@@ -78,6 +85,12 @@ func (s *SyncService) ProcessPendingUpserts(
 					Text:        document.Text,
 				},
 			)
+
+		documentKeys =
+			append(
+				documentKeys,
+				document.DocumentKey,
+			)
 	}
 
 	err = s.indexer.BulkIndexDocuments(
@@ -89,19 +102,10 @@ func (s *SyncService) ProcessPendingUpserts(
 		return err
 	}
 
-	for _, document := range documents {
-
-		err = s.repository.MarkSynced(
-			ctx,
-			document.DocumentKey,
-		)
-
-		if err != nil {
-			continue
-		}
-	}
-
-	return nil
+	return s.repository.MarkSyncedByDocumentKeys(
+		ctx,
+		documentKeys,
+	)
 }
 
 func (s *SyncService) ProcessPendingDeletes(
@@ -148,17 +152,8 @@ func (s *SyncService) ProcessPendingDeletes(
 		return err
 	}
 
-	for _, document := range documents {
-
-		err = s.repository.DeleteByDocumentKey(
-			ctx,
-			document.DocumentKey,
-		)
-
-		if err != nil {
-			continue
-		}
-	}
-
-	return nil
+	return s.repository.DeleteByDocumentKeys(
+		ctx,
+		documentKeys,
+	)
 }

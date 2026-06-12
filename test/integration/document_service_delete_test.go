@@ -17,7 +17,10 @@ func TestDocumentServiceDelete(
 
 	db := createDB(t)
 
-	defer db.Close()
+	t.Cleanup(func() {
+
+		_ = db.Close()
+	})
 
 	cfg := createTestConfig()
 

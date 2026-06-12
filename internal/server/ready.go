@@ -18,6 +18,11 @@ func ReadyHandler(
 		r *http.Request,
 	) {
 
+		w.Header().Set(
+			"Content-Type",
+			"application/json",
+		)
+
 		ctx, cancel := context.WithTimeout(
 			r.Context(),
 			2*time.Second,
@@ -33,18 +38,24 @@ func ReadyHandler(
 				http.StatusServiceUnavailable,
 			)
 
-			json.NewEncoder(w).Encode(
+			_ = json.NewEncoder(w).Encode(
 				map[string]string{
 					"status": "not_ready",
+					"mysql":  "error",
 				},
 			)
 
 			return
 		}
 
-		json.NewEncoder(w).Encode(
+		w.WriteHeader(
+			http.StatusOK,
+		)
+
+		_ = json.NewEncoder(w).Encode(
 			map[string]string{
 				"status": "ready",
+				"mysql":  "ok",
 			},
 		)
 	}

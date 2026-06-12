@@ -87,7 +87,7 @@ func (r *Repository) DeleteByNamespace(
 	namespace string,
 ) error {
 
-	result, err := r.db.ExecContext(
+	_, err := r.db.ExecContext(
 		ctx,
 		`
 		DELETE
@@ -106,23 +106,6 @@ func (r *Repository) DeleteByNamespace(
 
 		return err
 	}
-
-	rows, err := result.RowsAffected()
-
-	if err != nil {
-
-		fmt.Println(
-			"rows affected error:",
-			err,
-		)
-
-		return err
-	}
-
-	fmt.Println(
-		"deleted rows:",
-		rows,
-	)
 
 	return nil
 }
