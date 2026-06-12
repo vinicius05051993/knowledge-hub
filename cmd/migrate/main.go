@@ -18,7 +18,11 @@ func main() {
 		log.Fatal("usage: migrate [up|down]")
 	}
 
-	cfg := config.Load()
+	cfg, err := config.Load()
+
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	dsn := fmt.Sprintf(
 		"mysql://%s:%s@tcp(%s:%s)/%s",

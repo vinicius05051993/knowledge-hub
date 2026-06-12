@@ -1,9 +1,13 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"indexer/internal/apikeys"
 	"indexer/internal/config"
@@ -19,7 +23,11 @@ func main() {
 
 	metrics.Register()
 
-	cfg := config.Load()
+	cfg, err := config.Load()
+
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	db, err := database.NewMySQL(cfg)
 
@@ -73,17 +81,66 @@ func main() {
 
 	address := ":" + cfg.AppPort
 
-	fmt.Println(
-		"Server running on",
-		address,
+	srv := &http.Server{
+		Addr:    address,
+		Handler: app.Router(),
+	}
+
+	go func() {
+
+		log.Printf(
+			"server running on %s",
+			address,
+		)
+
+		err := srv.ListenAndServe()
+
+		if err != nil &&
+			err != http.ErrServerClosed {
+
+			log.Fatal(err)
+		}
+	}()
+
+	stop := make(
+		chan os.Signal,
+		1,
 	)
 
-	err = http.ListenAndServe(
-		address,
-		app.Router(),
+	signal.Notify(
+		stop,
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
+
+	<-stop
+
+	log.Println(
+		"shutdown signal received",
+	)
+
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		30*time.Second,
+	)
+
+	defer cancel()
+
+	err = srv.Shutdown(
+		ctx,
 	)
 
 	if err != nil {
-		log.Fatal(err)
+
+		log.Printf(
+			"server shutdown error: %v",
+			err,
+		)
+
+		return
 	}
+
+	log.Println(
+		"server stopped",
+	)
 }

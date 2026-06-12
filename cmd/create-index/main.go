@@ -10,12 +10,16 @@ import (
 
 func main() {
 
-	cfg := config.Load()
+	cfg, err := config.Load()
+
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	client :=
 		opensearch.NewClient(cfg)
 
-	err := opensearch.CreateDocumentsIndex(
+	err = opensearch.CreateDocumentsIndex(
 		context.Background(),
 		client,
 	)
