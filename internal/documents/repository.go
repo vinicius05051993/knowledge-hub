@@ -27,7 +27,6 @@ func (r *Repository) Upsert(
 	doc *Document,
 ) error {
 
-	doc.SyncStatus = SyncStatusPendingUpsert
 	doc.DeletedAt = nil
 
 	query := `

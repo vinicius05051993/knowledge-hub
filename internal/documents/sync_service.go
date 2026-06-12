@@ -2,6 +2,7 @@ package documents
 
 import (
 	"context"
+	"strings"
 
 	"indexer/internal/opensearch"
 )
@@ -74,6 +75,24 @@ func (s *SyncService) ProcessPendingUpserts(
 
 	for _, document := range documents {
 
+		documentKeys =
+			append(
+				documentKeys,
+				document.DocumentKey,
+			)
+
+		// Documentos somente com payload
+		// ficam apenas no MySQL
+		if strings.TrimSpace(
+			document.Title,
+		) == "" &&
+			strings.TrimSpace(
+				document.Text,
+			) == "" {
+
+			continue
+		}
+
 		bulkDocuments =
 			append(
 				bulkDocuments,
@@ -85,21 +104,18 @@ func (s *SyncService) ProcessPendingUpserts(
 					Text:        document.Text,
 				},
 			)
-
-		documentKeys =
-			append(
-				documentKeys,
-				document.DocumentKey,
-			)
 	}
 
-	err = s.indexer.BulkIndexDocuments(
-		ctx,
-		bulkDocuments,
-	)
+	if len(bulkDocuments) > 0 {
 
-	if err != nil {
-		return err
+		err = s.indexer.BulkIndexDocuments(
+			ctx,
+			bulkDocuments,
+		)
+
+		if err != nil {
+			return err
+		}
 	}
 
 	return s.repository.MarkSyncedByDocumentKeys(

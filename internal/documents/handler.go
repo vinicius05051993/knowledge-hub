@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+
 	"indexer/internal/auth"
 )
 
@@ -45,7 +46,7 @@ func (h *Handler) UpsertDocuments(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	
+
 	authContext :=
 		auth.GetAuthContext(r)
 
@@ -81,19 +82,24 @@ func (h *Handler) UpsertDocuments(
 
 	for _, item := range request.Documents {
 
-		payload, err := json.Marshal(
-			item.Payload,
-		)
+		var payload []byte
 
-		if err != nil {
+		if item.Payload != nil {
 
-			http.Error(
-				w,
-				"invalid payload",
-				http.StatusBadRequest,
+			payload, err = json.Marshal(
+				item.Payload,
 			)
 
-			return
+			if err != nil {
+
+				http.Error(
+					w,
+					"invalid payload",
+					http.StatusBadRequest,
+				)
+
+				return
+			}
 		}
 
 		document := &Document{
@@ -133,7 +139,7 @@ func (h *Handler) UpsertDocuments(
 		"application/json",
 	)
 
-	json.NewEncoder(w).Encode(
+	_ = json.NewEncoder(w).Encode(
 		response,
 	)
 }

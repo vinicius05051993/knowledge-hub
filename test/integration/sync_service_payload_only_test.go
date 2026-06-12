@@ -9,7 +9,7 @@ import (
 	"indexer/internal/opensearch"
 )
 
-func TestSyncServiceProcessPendingDeletes(
+func TestSyncServiceProcessPendingUpsertsPayloadOnly(
 	t *testing.T,
 ) {
 
@@ -32,16 +32,9 @@ func TestSyncServiceProcessPendingDeletes(
 
 	t.Cleanup(func() {
 
-		_ = opensearch.DeleteDocument(
-			context.Background(),
-			searchClient,
-			"sync-test",
-			"test-delete",
-		)
-
 		_ = documentRepository.DeleteByNamespace(
 			context.Background(),
-			"sync-test",
+			"payload-sync",
 		)
 
 		syncDocuments(
@@ -61,16 +54,19 @@ func TestSyncServiceProcessPendingDeletes(
 	now := time.Now().UTC()
 
 	document := &documents.Document{
-		DocumentKey: "sync-test:test-delete",
+		DocumentKey:
+			"payload-sync:payload-only",
 
-		Namespace:  "sync-test",
-		ExternalID: "test-delete",
+		Namespace: "payload-sync",
 
-		Title: "Delete Test",
-		Text:  "Document To Delete",
+		ExternalID: "payload-only",
 
 		SyncStatus:
-			documents.SyncStatusPendingUpsert,
+			documents.SyncStatusSynced,
+
+		Payload: []byte(`{
+			"sku":"ABC123"
+		}`),
 
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -94,45 +90,31 @@ func TestSyncServiceProcessPendingDeletes(
 		t.Fatal(err)
 	}
 
-	err = documentRepository.DeleteByExternalIDs(
-		context.Background(),
-		"sync-test",
-		[]string{
-			"test-delete",
-		},
-	)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = syncService.ProcessPendingDeletes(
-		context.Background(),
-		100,
-	)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err =
+	documentDB, err :=
 		documentRepository.FindByExternalID(
 			context.Background(),
-			"sync-test",
-			"test-delete",
+			"payload-sync",
+			"payload-only",
 		)
 
-	if err == nil {
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		t.Fatal(
-			"document should have been deleted",
+	if documentDB.SyncStatus !=
+		documents.SyncStatusSynced {
+
+		t.Fatalf(
+			"expected sync_status=%d got=%d",
+			documents.SyncStatusSynced,
+			documentDB.SyncStatus,
 		)
 	}
 
 	results, err :=
 		searchService.Search(
 			context.Background(),
-			"Delete",
+			"ABC123",
 			0,
 			10,
 		)
@@ -144,10 +126,10 @@ func TestSyncServiceProcessPendingDeletes(
 	for _, result := range results {
 
 		if result.DocumentKey ==
-			"sync-test:test-delete" {
+			"payload-sync:payload-only" {
 
 			t.Fatal(
-				"document still exists in opensearch",
+				"payload only document should not be indexed",
 			)
 		}
 	}

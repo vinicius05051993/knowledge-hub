@@ -69,6 +69,9 @@ func TestSyncServiceProcessPendingUpserts(
 		Title: "Adobe Experience Manager",
 		Text:  "Adobe AEM Search Test",
 
+		SyncStatus:
+			documents.SyncStatusPendingUpsert,
+
 		CreatedAt: now,
 		UpdatedAt: now,
 	}

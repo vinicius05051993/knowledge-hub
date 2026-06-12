@@ -3,11 +3,17 @@ package documents
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sort"
+	"strings"
 	"time"
 
 	"indexer/internal/documentfilters"
 	"indexer/internal/opensearch"
+)
+
+var ErrEmptyDocument = errors.New(
+	"document must contain title, text or payload",
 )
 
 type SearchIndexer interface {
@@ -54,6 +60,36 @@ func (s *Service) Upsert(
 	document *Document,
 ) error {
 
+	if strings.TrimSpace(
+		document.Title,
+	) == "" &&
+		strings.TrimSpace(
+			document.Text,
+		) == "" &&
+		len(document.Payload) == 0 {
+
+		return ErrEmptyDocument
+	}
+
+	hasSearchContent :=
+		strings.TrimSpace(
+			document.Title,
+		) != "" ||
+			strings.TrimSpace(
+				document.Text,
+			) != ""
+
+	if hasSearchContent {
+
+		document.SyncStatus =
+			SyncStatusPendingUpsert
+
+	} else {
+
+		document.SyncStatus =
+			SyncStatusSynced
+	}
+
 	now := time.Now().UTC()
 
 	if document.CreatedAt.IsZero() {
@@ -76,31 +112,34 @@ func (s *Service) Upsert(
 		return err
 	}
 
-	var payload map[string]any
-
-	err = json.Unmarshal(
-		document.Payload,
-		&payload,
-	)
-
-	if err != nil {
-		return err
-	}
-
 	filters :=
 		make(
 			map[string]string,
 		)
 
-	for key, value := range payload {
+	if len(document.Payload) > 0 {
 
-		str, ok := value.(string)
+		var payload map[string]any
 
-		if !ok {
-			continue
+		err = json.Unmarshal(
+			document.Payload,
+			&payload,
+		)
+
+		if err != nil {
+			return err
 		}
 
-		filters[key] = str
+		for key, value := range payload {
+
+			str, ok := value.(string)
+
+			if !ok {
+				continue
+			}
+
+			filters[key] = str
+		}
 	}
 
 	err = s.filterRepository.Replace(
