@@ -3,12 +3,25 @@ package documents
 import (
 	"encoding/json"
 	"net/http"
+	"time"
+
+	"indexer/internal/metrics"
 )
 
 func (h *Handler) Search(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
+
+	metrics.SearchRequestsTotal.Inc()
+
+	start := time.Now()
+
+	defer func() {
+		metrics.SearchDurationSeconds.Observe(
+			time.Since(start).Seconds(),
+		)
+	}()
 
 	var request SearchRequest
 
@@ -108,7 +121,7 @@ func (h *Handler) Search(
 		"application/json",
 	)
 
-	json.NewEncoder(w).Encode(
+	_ = json.NewEncoder(w).Encode(
 		responses,
 	)
 }

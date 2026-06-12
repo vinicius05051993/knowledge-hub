@@ -13,6 +13,14 @@ var (
 			},
 		)
 
+	SearchDurationSeconds =
+		prometheus.NewHistogram(
+			prometheus.HistogramOpts{
+				Name: "indexer_search_duration_seconds",
+				Help: "Search duration in seconds",
+			},
+		)
+
 	UpsertDocumentsTotal =
 		prometheus.NewCounter(
 			prometheus.CounterOpts{
@@ -34,6 +42,10 @@ func Register() {
 
 	prometheus.MustRegister(
 		SearchRequestsTotal,
+	)
+
+	prometheus.MustRegister(
+		SearchDurationSeconds,
 	)
 
 	prometheus.MustRegister(
