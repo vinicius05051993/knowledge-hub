@@ -60,99 +60,12 @@ func (s *Service) Upsert(
 	document *Document,
 ) error {
 
-	if strings.TrimSpace(
-		document.Title,
-	) == "" &&
-		strings.TrimSpace(
-			document.Text,
-		) == "" &&
-		len(document.Payload) == 0 {
-
-		return ErrEmptyDocument
-	}
-
-	hasSearchContent :=
-		strings.TrimSpace(
-			document.Title,
-		) != "" ||
-			strings.TrimSpace(
-				document.Text,
-			) != ""
-
-	if hasSearchContent {
-
-		document.SyncStatus =
-			SyncStatusPendingUpsert
-
-	} else {
-
-		document.SyncStatus =
-			SyncStatusSynced
-	}
-
-	now := time.Now().UTC()
-
-	if document.CreatedAt.IsZero() {
-		document.CreatedAt = now
-	}
-
-	document.UpdatedAt = now
-
-	document.DocumentKey =
-		document.Namespace +
-			":" +
-			document.ExternalID
-
-	err := s.repository.Upsert(
+	return s.UpsertBatch(
 		ctx,
-		document,
+		[]*Document{
+			document,
+		},
 	)
-
-	if err != nil {
-		return err
-	}
-
-	filters :=
-		make(
-			map[string]string,
-		)
-
-	if len(document.Payload) > 0 {
-
-		var payload map[string]any
-
-		err = json.Unmarshal(
-			document.Payload,
-			&payload,
-		)
-
-		if err != nil {
-			return err
-		}
-
-		for key, value := range payload {
-
-			str, ok := value.(string)
-
-			if !ok {
-				continue
-			}
-
-			filters[key] = str
-		}
-	}
-
-	err = s.filterRepository.Replace(
-		ctx,
-		document.DocumentKey,
-		filters,
-	)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (s *Service) Delete(
@@ -354,4 +267,120 @@ func (s *Service) Search(
 	}
 
 	return response, nil
+}
+
+func (s *Service) prepareDocument(
+	document *Document,
+) error {
+
+	if strings.TrimSpace(document.Title) == "" &&
+		strings.TrimSpace(document.Text) == "" &&
+		len(document.Payload) == 0 {
+
+		return ErrEmptyDocument
+	}
+
+	document.DeletedAt = nil
+
+	hasSearchContent :=
+		strings.TrimSpace(document.Title) != "" ||
+			strings.TrimSpace(document.Text) != ""
+
+	if hasSearchContent {
+		document.SyncStatus =
+			SyncStatusPendingUpsert
+	} else {
+		document.SyncStatus =
+			SyncStatusSynced
+	}
+
+	now := time.Now().UTC()
+
+	if document.CreatedAt.IsZero() {
+		document.CreatedAt = now
+	}
+
+	document.UpdatedAt = now
+
+	document.DocumentKey =
+		document.Namespace +
+			":" +
+			document.ExternalID
+
+	return nil
+}
+
+func (s *Service) UpsertBatch(
+	ctx context.Context,
+	documents []*Document,
+) error {
+
+	if len(documents) == 0 {
+		return nil
+	}
+
+	for _, document := range documents {
+
+		err := s.prepareDocument(
+			document,
+		)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	err := s.repository.UpsertBatch(
+		ctx,
+		documents,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	for _, document := range documents {
+
+		filters :=
+			make(
+				map[string]string,
+			)
+
+		if len(document.Payload) > 0 {
+
+			var payload map[string]any
+
+			err = json.Unmarshal(
+				document.Payload,
+				&payload,
+			)
+
+			if err != nil {
+				return err
+			}
+
+			for key, value := range payload {
+
+				str, ok := value.(string)
+
+				if !ok {
+					continue
+				}
+
+				filters[key] = str
+			}
+		}
+
+		err = s.filterRepository.Replace(
+			ctx,
+			document.DocumentKey,
+			filters,
+		)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

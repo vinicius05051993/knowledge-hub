@@ -3,9 +3,12 @@ package documents
 import (
 	"context"
 	"regexp"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 )
+
+const batchSize = 500
 
 var validFilterField =
 	regexp.MustCompile(
@@ -23,53 +26,14 @@ func NewRepository(db *sqlx.DB) *Repository {
 }
 
 func (r *Repository) Upsert(
-	ctx context.Context,
-	doc *Document,
+    ctx context.Context,
+    doc *Document,
 ) error {
 
-	doc.DeletedAt = nil
-
-	query := `
-	INSERT INTO documents (
-		document_key,
-		namespace,
-		external_id,
-		title,
-		text,
-		payload,
-		sync_status,
-		deleted_at,
-		created_at,
-		updated_at
-	)
-	VALUES (
-		?,?,?,?,?,?,?,?,?,?
-	)
-	ON DUPLICATE KEY UPDATE
-		title = VALUES(title),
-		text = VALUES(text),
-		payload = VALUES(payload),
-		sync_status = VALUES(sync_status),
-		deleted_at = VALUES(deleted_at),
-		updated_at = VALUES(updated_at)
-	`
-
-	_, err := r.db.ExecContext(
-		ctx,
-		query,
-		doc.DocumentKey,
-		doc.Namespace,
-		doc.ExternalID,
-		doc.Title,
-		doc.Text,
-		doc.Payload,
-		doc.SyncStatus,
-		doc.DeletedAt,
-		doc.CreatedAt,
-		doc.UpdatedAt,
-	)
-
-	return err
+    return r.UpsertBatch(
+        ctx,
+        []*Document{doc},
+    )
 }
 
 func (r *Repository) FindByExternalID(
@@ -491,4 +455,103 @@ func (r *Repository) DeleteByDocumentKeys(
 	)
 
 	return err
+}
+
+func (r *Repository) UpsertBatch(
+    ctx context.Context,
+    docs []*Document,
+) error {
+
+    if len(docs) == 0 {
+        return nil
+    }
+
+    for i := 0; i < len(docs); i += batchSize {
+
+        end := i + batchSize
+
+        if end > len(docs) {
+            end = len(docs)
+        }
+
+        if err := r.upsertChunk(
+            ctx,
+            docs[i:end],
+        ); err != nil {
+            return err
+        }
+    }
+
+    return nil
+}
+
+func (r *Repository) upsertChunk(
+    ctx context.Context,
+    docs []*Document,
+) error {
+
+    values := make(
+        []string,
+        0,
+        len(docs),
+    )
+
+    args := make(
+        []any,
+        0,
+        len(docs)*10,
+    )
+
+    for _, doc := range docs {
+
+        values = append(
+            values,
+            "(?,?,?,?,?,?,?,?,?,?)",
+        )
+
+        args = append(
+            args,
+            doc.DocumentKey,
+            doc.Namespace,
+            doc.ExternalID,
+            doc.Title,
+            doc.Text,
+            doc.Payload,
+            doc.SyncStatus,
+            doc.DeletedAt,
+            doc.CreatedAt,
+            doc.UpdatedAt,
+        )
+    }
+
+    query := `
+    INSERT INTO documents (
+        document_key,
+        namespace,
+        external_id,
+        title,
+        text,
+        payload,
+        sync_status,
+        deleted_at,
+        created_at,
+        updated_at
+    )
+    VALUES ` + strings.Join(values, ",") + `
+    ON DUPLICATE KEY UPDATE
+        title = VALUES(title),
+        text = VALUES(text),
+        payload = VALUES(payload),
+        sync_status = VALUES(sync_status),
+        deleted_at = VALUES(deleted_at),
+        updated_at = VALUES(updated_at)
+    `
+
+    _, err := r.db.ExecContext(
+        ctx,
+        query,
+        args...,
+    )
+
+    return err
 }
