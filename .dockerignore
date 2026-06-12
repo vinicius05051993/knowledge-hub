@@ -1,0 +1,14 @@
+.git
+.gitignore
+
+.env
+
+coverage.out
+
+tmp
+dist
+bin
+
+deploy
+
+*.log
