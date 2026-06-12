@@ -339,6 +339,11 @@ func (s *Service) UpsertBatch(
 		return err
 	}
 
+	filtersByDocument :=
+		make(
+			map[string]map[string]string,
+		)
+
 	for _, document := range documents {
 
 		filters :=
@@ -371,15 +376,16 @@ func (s *Service) UpsertBatch(
 			}
 		}
 
-		err = s.filterRepository.Replace(
-			ctx,
-			document.DocumentKey,
-			filters,
-		)
+		filtersByDocument[document.DocumentKey] = filters
+	}
 
-		if err != nil {
-			return err
-		}
+	err = s.filterRepository.ReplaceBatch(
+		ctx,
+		filtersByDocument,
+	)
+
+	if err != nil {
+		return err
 	}
 
 	return nil
