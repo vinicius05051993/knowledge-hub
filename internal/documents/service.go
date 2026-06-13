@@ -12,6 +12,11 @@ import (
 	"indexer/internal/opensearch"
 )
 
+const (
+	FilterTypeAnd = "and"
+	FilterTypeOr  = "or"
+)
+
 var ErrEmptyDocument = errors.New(
 	"document must contain title, text or payload",
 )
@@ -117,16 +122,22 @@ func (s *Service) Search(
 	offset int,
 	limit int,
 	filters map[string]string,
+	filterType string,
 ) ([]SearchDocument, error) {
+
+	if filterType != FilterTypeOr {
+		filterType = FilterTypeAnd
+	}
 
 	if query == "" {
 
 		documents, err := s.repository.Search(
 			ctx,
 			nil,
-			filters,
 			offset,
 			limit,
+			filters,
+			filterType,
 		)
 
 		if err != nil {
@@ -223,9 +234,10 @@ func (s *Service) Search(
 		s.repository.Search(
 			ctx,
 			documentKeys,
+			0,
+			0,
 			filters,
-			0,
-			0,
+			filterType,
 		)
 
 	if err != nil {

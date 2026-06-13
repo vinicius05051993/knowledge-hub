@@ -31,6 +31,19 @@ func (h *Handler) Search(
 		&request,
 	)
 
+	if err != nil {
+
+		metrics.SearchErrorsTotal.Inc()
+
+		http.Error(
+			w,
+			"invalid request",
+			http.StatusBadRequest,
+		)
+
+		return
+	}
+
 	if request.Offset < 0 {
 
 		request.Offset = 0
@@ -46,29 +59,6 @@ func (h *Handler) Search(
 		request.Limit = 100
 	}
 
-	if err != nil {
-
-		metrics.SearchErrorsTotal.Inc()
-
-		http.Error(
-			w,
-			"invalid request",
-			http.StatusBadRequest,
-		)
-
-		return
-	}
-
-	if request.Limit <= 0 {
-
-		request.Limit = 10
-	}
-
-	if request.Limit > 100 {
-
-		request.Limit = 100
-	}
-
 	results, err :=
 		h.service.Search(
 			r.Context(),
@@ -76,6 +66,7 @@ func (h *Handler) Search(
 			request.Offset,
 			request.Limit,
 			request.Filters,
+			request.FilterType,
 		)
 
 	if err != nil {

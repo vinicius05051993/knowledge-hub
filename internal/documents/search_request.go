@@ -8,4 +8,6 @@ type SearchRequest struct {
 	Limit int `json:"limit"`
 
 	Filters map[string]string `json:"filters"`
+
+	FilterType string `json:"filter_type"`
 }

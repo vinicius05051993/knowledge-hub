@@ -107,6 +107,7 @@ func TestDocumentServiceSearch(
 			0,
 			10,
 			nil,
+			"",
 		)
 
 	if err != nil {

@@ -176,9 +176,10 @@ func (r *Repository) DeleteByExternalIDs(
 func (r *Repository) Search(
 	ctx context.Context,
 	documentKeys []string,
-	filters map[string]string,
 	offset int,
 	limit int,
+	filters map[string]string,
+	filterType string,
 ) ([]Document, error) {
 
 	query := `
@@ -215,31 +216,89 @@ func (r *Repository) Search(
 		)
 	}
 
-	for field, value := range filters {
+	if filterType != FilterTypeOr {
+		filterType = FilterTypeAnd
+	}
 
-		if !validFilterField.MatchString(
-			field,
-		) {
-			continue
+	if len(filters) > 0 {
+
+		if filterType == FilterTypeAnd {
+
+			for field, value := range filters {
+
+				if !validFilterField.MatchString(
+					field,
+				) {
+					continue
+				}
+
+				query += `
+				AND EXISTS (
+					SELECT 1
+					FROM document_filters f
+					WHERE
+						f.document_key =
+							documents.document_key
+					AND f.field_name = ?
+					AND f.field_value = ?
+				)
+				`
+
+				args = append(
+					args,
+					field,
+					value,
+				)
+			}
+
+		} else {
+
+			query += `
+			AND (
+			`
+
+			first := true
+
+			for field, value := range filters {
+
+				if !validFilterField.MatchString(
+					field,
+				) {
+					continue
+				}
+
+				if !first {
+
+					query += `
+					OR
+					`
+				}
+
+				query += `
+				EXISTS (
+					SELECT 1
+					FROM document_filters f
+					WHERE
+						f.document_key =
+							documents.document_key
+					AND f.field_name = ?
+					AND f.field_value = ?
+				)
+				`
+
+				args = append(
+					args,
+					field,
+					value,
+				)
+
+				first = false
+			}
+
+			query += `
+			)
+			`
 		}
-
-		query += `
-		AND EXISTS (
-			SELECT 1
-			FROM document_filters f
-			WHERE
-				f.document_key =
-					documents.document_key
-			AND f.field_name = ?
-			AND f.field_value = ?
-		)
-		`
-
-		args = append(
-			args,
-			field,
-			value,
-		)
 	}
 
 	if len(documentKeys) == 0 {

@@ -16,6 +16,7 @@ type SearchService interface {
 		offset int,
 		limit int,
 		filters map[string]string,
+		filterType string,
 	) ([]SearchDocument, error)
 
 	Upsert(
