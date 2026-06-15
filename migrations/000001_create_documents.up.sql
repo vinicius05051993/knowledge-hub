@@ -7,8 +7,6 @@ CREATE TABLE documents (
     title VARCHAR(500) NOT NULL,
     text LONGTEXT NOT NULL,
 
-    payload JSON,
-
     sync_status TINYINT NOT NULL DEFAULT 0,
     deleted_at DATETIME NULL,
 

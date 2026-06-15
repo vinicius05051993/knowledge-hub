@@ -9,6 +9,23 @@ import (
 )
 
 const batchSize = 500
+const baseSelect = `
+SELECT
+	d.*,
+	COALESCE(
+		(
+			SELECT JSON_OBJECTAGG(
+				df.field_name,
+				df.field_value
+			)
+			FROM document_filters df
+			WHERE df.document_key =
+				d.document_key
+		),
+		JSON_OBJECT()
+	) AS payload
+FROM documents d
+`
 
 var validFilterField =
 	regexp.MustCompile(
@@ -42,12 +59,10 @@ func (r *Repository) FindByExternalID(
 	externalID string,
 ) (*Document, error) {
 
-	query := `
-	SELECT *
-	FROM documents
-	WHERE namespace = ?
-	AND external_id = ?
-	AND deleted_at IS NULL
+	query := baseSelect + `
+	WHERE d.namespace = ?
+	AND d.external_id = ?
+	AND d.deleted_at IS NULL
 	LIMIT 1
 	`
 
@@ -78,11 +93,9 @@ func (r *Repository) FindByDocumentKeys(
 	}
 
 	query, args, err := sqlx.In(
-		`
-		SELECT *
-		FROM documents
-		WHERE document_key IN (?)
-		AND deleted_at IS NULL
+		baseSelect+`
+		WHERE d.document_key IN (?)
+		AND d.deleted_at IS NULL
 		`,
 		documentKeys,
 	)
@@ -182,11 +195,9 @@ func (r *Repository) Search(
 	filterType string,
 ) ([]Document, error) {
 
-	query := `
-	SELECT *
-	FROM documents
+	query := baseSelect + `
 	WHERE 1 = 1
-	AND deleted_at IS NULL
+	AND d.deleted_at IS NULL
 	`
 
 	args := make(
@@ -198,7 +209,7 @@ func (r *Repository) Search(
 
 		inQuery, inArgs, err := sqlx.In(
 			`
-			document_key IN (?)
+			d.document_key IN (?)
 			`,
 			documentKeys,
 		)
@@ -238,7 +249,7 @@ func (r *Repository) Search(
 					FROM document_filters f
 					WHERE
 						f.document_key =
-							documents.document_key
+							d.document_key
 					AND f.field_name = ?
 					AND f.field_value = ?
 				)
@@ -280,7 +291,7 @@ func (r *Repository) Search(
 					FROM document_filters f
 					WHERE
 						f.document_key =
-							documents.document_key
+							d.document_key
 					AND f.field_name = ?
 					AND f.field_value = ?
 				)
@@ -545,72 +556,69 @@ func (r *Repository) UpsertBatch(
 }
 
 func (r *Repository) upsertChunk(
-    ctx context.Context,
-    docs []*Document,
+	ctx context.Context,
+	docs []*Document,
 ) error {
 
-    values := make(
-        []string,
-        0,
-        len(docs),
-    )
+	values := make(
+		[]string,
+		0,
+		len(docs),
+	)
 
-    args := make(
-        []any,
-        0,
-        len(docs)*10,
-    )
+	args := make(
+		[]any,
+		0,
+		len(docs)*9,
+	)
 
-    for _, doc := range docs {
+	for _, doc := range docs {
 
-        values = append(
-            values,
-            "(?,?,?,?,?,?,?,?,?,?)",
-        )
+		values = append(
+			values,
+			"(?,?,?,?,?,?,?,?,?)",
+		)
 
-        args = append(
-            args,
-            doc.DocumentKey,
-            doc.Namespace,
-            doc.ExternalID,
-            doc.Title,
-            doc.Text,
-            doc.Payload,
-            doc.SyncStatus,
-            doc.DeletedAt,
-            doc.CreatedAt,
-            doc.UpdatedAt,
-        )
-    }
+		args = append(
+			args,
+			doc.DocumentKey,
+			doc.Namespace,
+			doc.ExternalID,
+			doc.Title,
+			doc.Text,
+			doc.SyncStatus,
+			doc.DeletedAt,
+			doc.CreatedAt,
+			doc.UpdatedAt,
+		)
+	}
 
-    query := `
-    INSERT INTO documents (
-        document_key,
-        namespace,
-        external_id,
-        title,
-        text,
-        payload,
-        sync_status,
-        deleted_at,
-        created_at,
-        updated_at
-    )
-    VALUES ` + strings.Join(values, ",") + `
-    ON DUPLICATE KEY UPDATE
-        title = VALUES(title),
-        text = VALUES(text),
-        payload = VALUES(payload),
-        sync_status = VALUES(sync_status),
-        deleted_at = VALUES(deleted_at),
-        updated_at = VALUES(updated_at)
-    `
+	query := `
+	INSERT INTO documents (
+		document_key,
+		namespace,
+		external_id,
+		title,
+		text,
+		sync_status,
+		deleted_at,
+		created_at,
+		updated_at
+	)
+	VALUES ` + strings.Join(values, ",") + `
+	ON DUPLICATE KEY UPDATE
+		title = VALUES(title),
+		text = VALUES(text),
+		sync_status = VALUES(sync_status),
+		deleted_at = VALUES(deleted_at),
+		updated_at = VALUES(updated_at)
+	`
 
-    _, err := r.db.ExecContext(
-        ctx,
-        query,
-        args...,
-    )
+	_, err := r.db.ExecContext(
+		ctx,
+		query,
+		args...,
+	)
 
-    return err
+	return err
 }
