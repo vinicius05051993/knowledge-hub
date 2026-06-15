@@ -1,246 +1,74 @@
-# Knowledge Hub / Indexer – Technical Documentation
+# Knowledge Hub
 
-## 1. Project Overview
+Knowledge Hub is a lightweight document indexing and search platform built with Go, MySQL, and OpenSearch.
 
-### Purpose
+The project is designed to provide a simple and scalable way to index documents, apply structured filters, and perform fast searches across multiple namespaces. It follows a clean architecture approach with a clear separation between API, persistence, synchronization, and search layers.
 
-Knowledge Hub is a document indexing and search service built in Go.
+## Project Roadmap
 
-It allows external systems to:
+### V1 — Basic Search
 
-- Store documents
-- Update documents
-- Delete documents
-- Search indexed content
+**Branch:** `basic`
 
-The system uses:
+The first version focuses on a solid foundation:
 
+- REST API for document management
 - MySQL as the source of truth
-- OpenSearch as the search engine
-- An asynchronous synchronization worker to keep OpenSearch updated.
+- OpenSearch for indexing and search
+- Namespace isolation
+- Structured document filters
+- API key authentication
+- Background synchronization worker
+- Automated tests
+- Docker-based local development
+
+**Goal:** Provide a reliable and maintainable document search platform.
 
 ---
 
-## Main Features
+### V2 — Semantic Search
 
-| Feature | Description |
-|----------|-------------|
-| Document Upsert | Create or update documents |
-| Document Delete | Remove documents |
-| Full-text Search | Search indexed content |
-| Namespace Isolation | Documents are separated by namespace |
-| API Key Authentication | Access control for APIs |
-| Async Indexing | OpenSearch updates occur via worker |
-| Health Checks | Liveness endpoint |
-| Readiness Checks | MySQL connectivity validation |
+**Branch:** `semantic-search`
 
----
+Planned improvements:
 
-## Technology Stack
+- Embedding generation pipeline
+- Semantic search using vector embeddings
+- Hybrid search (keyword + semantic)
+- OpenSearch vector indexes
+- Improved ranking and relevance
+- Search quality benchmarks
+- Performance optimizations
 
-| Component | Technology |
-|------------|------------|
-| Language | Go 1.25 |
-| Database | MySQL 8 |
-| Search Engine | OpenSearch 3 |
-| Database Access | sqlx |
-| Migrations | golang-migrate |
-| Authentication | API Keys |
-| Deployment | Docker / Docker Compose |
+**Goal:** Allow users to find relevant documents even when exact keywords are not present.
 
 ---
 
-## High-Level Architecture
+### V3 — AI Chatbot on Kubernetes
 
-```mermaid
-flowchart LR
+**Branch:** `ia-chatbot-kubernets`
 
-Client --> API
+Planned improvements:
 
-API --> MySQL
+- Retrieval-Augmented Generation (RAG)
+- LLM integration
+- AI-powered chatbot interface
+- Context-aware document answering
+- Kubernetes deployment support
+- Horizontal scaling
+- Observability and monitoring
+- Production-ready cloud architecture
 
-Worker --> MySQL
-Worker --> OpenSearch
-
-Client --> SearchAPI
-SearchAPI --> OpenSearch
-```
-
----
-
-## Main Components
-
-| Component | Responsibility |
-|------------|----------------|
-| API Server | Receives requests |
-| Documents Module | Document management |
-| API Keys Module | Authentication |
-| Sync Worker | Synchronizes MySQL → OpenSearch |
-| OpenSearch Module | Search operations |
-| Database Module | MySQL connectivity |
-| Migration Tool | Database schema management |
+**Goal:** Transform the search platform into an AI knowledge assistant capable of answering questions based on indexed documents.
 
 ---
 
-## Available Endpoints
+## Long-Term Vision
 
-| Method | Endpoint |
-|----------|----------|
-| GET | `/health` |
-| GET | `/ready` |
-| GET | `/protected` |
-| POST | `/documents/upsert` |
-| DELETE | `/documents` |
-| POST | `/search` |
+Knowledge Hub aims to evolve from a traditional search engine into a complete enterprise knowledge platform by combining:
 
----
+- Structured search
+- Semantic retrieval
+- AI-assisted question answering
 
-## Operational Flow
-
-### Document Upsert
-
-```text
-Client
-  ↓
-API
-  ↓
-MySQL
-  ↓
-Pending Sync
-  ↓
-Worker
-  ↓
-OpenSearch
-```
-
-### Search
-
-```text
-Client
-  ↓
-API
-  ↓
-OpenSearch
-  ↓
-Results
-```
-
----
-
-## Infrastructure Requirements
-
-### MySQL
-
-Used for:
-
-- Documents
-- API Keys
-- Synchronization control
-
-### OpenSearch
-
-Used for:
-
-- Full-text indexing
-- Search queries
-
-### Worker
-
-Runs continuously and:
-
-- Processes pending upserts
-- Processes pending deletes
-- Sleeps 5 seconds between cycles
-
----
-
-## Health & Readiness
-
-### Health
-
-**Request**
-
-```http
-GET /health
-```
-
-**Response**
-
-```json
-{
-  "status": "ok"
-}
-```
-
-### Readiness
-
-**Request**
-
-```http
-GET /ready
-```
-
-Checks:
-
-- MySQL connectivity
-
-**Response**
-
-```json
-{
-  "status": "ready",
-  "mysql": "ok"
-}
-```
-
----
-
-## Strengths Identified
-
-- Simple architecture
-- Clear separation between API and indexing
-- OpenSearch decoupled from write operations
-- Namespace-based isolation
-- Health and readiness endpoints
-- Docker environment available
-- Database migrations included
-
----
-
-## Potential Improvements
-
-1. Configurable sync interval (currently fixed at 5 seconds)
-2. Batch delete operations
-3. Metrics for synchronization throughput
-4. OpenSearch health validation in `/ready`
-5. Structured logging
-6. Distributed tracing
-7. Kubernetes manifests or Helm charts
-8. Bulk indexing support
-
----
-
-## Architecture Summary
-
-```mermaid
-flowchart TB
-
-Client --> API
-
-subgraph Database
-    MySQL
-end
-
-subgraph Search
-    OpenSearch
-end
-
-subgraph Background Processing
-    SyncWorker
-end
-
-API --> MySQL
-SyncWorker --> MySQL
-SyncWorker --> OpenSearch
-API --> OpenSearch
-```
+while keeping the architecture simple, scalable, and self-hosted.
