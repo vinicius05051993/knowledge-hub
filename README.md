@@ -63,6 +63,72 @@ Planned improvements:
 
 ---
 
+# V4 — Knowledge Intelligence
+**Branch:** `knowledge-intelligence`
+
+The fourth version transforms the platform from a search engine and AI assistant into a knowledge intelligence system.
+
+Instead of only finding documents and answering questions, the platform starts identifying relationships, trends, and insights across the entire knowledge base.
+
+## Planned Improvements
+
+### Entity Extraction
+
+Automatically identify important entities from documents, such as:
+
+- Technologies
+- Products
+- APIs
+- Organizations
+
+### Knowledge Graph
+
+Create relationships between entities and documents.
+
+Example:
+
+```text
+Magento
+ ├── API Key
+ ├── OAuth
+ └── OpenSearch
+```
+
+### Topic Clustering
+
+Automatically group similar documents into topics.
+
+Examples:
+
+- Authentication
+- Search
+- Infrastructure
+- Monitoring
+
+### Trend Detection
+
+Track how topics evolve over time.
+
+Examples:
+
+- Most discussed topics
+- Fastest growing topics
+- New emerging topics
+
+### Knowledge Gap Detection
+
+Identify areas where documentation may be missing or incomplete.
+
+### AI Summaries
+
+Generate summaries for topics and document collections.
+
+## Goal
+
+Enable organizations to discover knowledge, relationships, and trends hidden inside large collections of documents.
+
+---
+
 ## Long-Term Vision
 
 Knowledge Hub aims to evolve from a traditional search engine into a complete enterprise knowledge platform by combining:
