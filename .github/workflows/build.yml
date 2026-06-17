@@ -1,43 +1,36 @@
-FROM golang:1.25 AS builder
+name: Build and Publish Docker Image
 
-WORKDIR /app
+on:
+  push:
+    branches:
+      - main
 
-COPY go.mod .
-COPY go.sum .
+  workflow_dispatch:
 
-RUN go mod download
+jobs:
+  publish:
+    runs-on: ubuntu-latest
 
-COPY . .
+    permissions:
+      contents: read
+      packages: write
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o api ./cmd/api
-RUN CGO_ENABLED=0 GOOS=linux go build -o sync-worker ./cmd/sync-worker
-RUN CGO_ENABLED=0 GOOS=linux go build -o migrate ./cmd/migrate
-RUN CGO_ENABLED=0 GOOS=linux go build -o create-index ./cmd/create-index
+    steps:
+      - uses: actions/checkout@v4
 
-FROM debian:bookworm-slim
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-RUN apt-get update && \
-    apt-get install -y ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+      - uses: docker/setup-buildx-action@v3
 
-WORKDIR /app
-
-COPY --from=builder /app/api .
-COPY --from=builder /app/sync-worker .
-COPY --from=builder /app/migrate .
-COPY --from=builder /app/create-index .
-
-COPY migrations ./migrations
-COPY entrypoint.sh .
-
-RUN chmod +x entrypoint.sh
-
-RUN useradd -r -s /bin/false appuser
-
-RUN chown -R appuser:appuser /app
-
-USER appuser
-
-EXPOSE 8080
-
-CMD ["./entrypoint.sh"]
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ghcr.io/vinicius05051993/knowledge-hub:latest
+            ghcr.io/vinicius05051993/knowledge-hub:${{ github.sha }}
