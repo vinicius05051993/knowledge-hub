@@ -1,40 +1,43 @@
-name: Build and Publish Docker Image
+FROM golang:1.25 AS builder
 
-on:
+WORKDIR /app
 
-  push:
-    branches:
-      - main
+COPY go.mod .
+COPY go.sum .
 
-  workflow_dispatch:
+RUN go mod download
 
-jobs:
+COPY . .
 
-  publish:
+RUN CGO_ENABLED=0 GOOS=linux go build -o api ./cmd/api
+RUN CGO_ENABLED=0 GOOS=linux go build -o sync-worker ./cmd/sync-worker
+RUN CGO_ENABLED=0 GOOS=linux go build -o migrate ./cmd/migrate
+RUN CGO_ENABLED=0 GOOS=linux go build -o create-index ./cmd/create-index
 
-    runs-on: ubuntu-latest
+FROM debian:bookworm-slim
 
-    permissions:
-      contents: read
-      packages: write
+RUN apt-get update && \
+    apt-get install -y ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
-    steps:
+WORKDIR /app
 
-      - uses: actions/checkout@v4
+COPY --from=builder /app/api .
+COPY --from=builder /app/sync-worker .
+COPY --from=builder /app/migrate .
+COPY --from=builder /app/create-index .
 
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+COPY migrations ./migrations
+COPY entrypoint.sh .
 
-      - uses: docker/setup-buildx-action@v3
+RUN chmod +x entrypoint.sh
 
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: |
-            ghcr.io/vinicius05051993/knowledge-hub:latest
-            ghcr.io/vinicius05051993/knowledge-hub:${{ github.sha }}
+RUN useradd -r -s /bin/false appuser
+
+RUN chown -R appuser:appuser /app
+
+USER appuser
+
+EXPOSE 8080
+
+CMD ["./entrypoint.sh"]
