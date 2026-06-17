@@ -28,11 +28,16 @@ COPY --from=builder /app/migrate .
 COPY --from=builder /app/create-index .
 
 COPY migrations ./migrations
+COPY entrypoint.sh .
+
+RUN chmod +x entrypoint.sh
 
 RUN useradd -r -s /bin/false appuser
+
+RUN chown -R appuser:appuser /app
 
 USER appuser
 
 EXPOSE 8080
 
-CMD ["./api"]
+CMD ["./entrypoint.sh"]
