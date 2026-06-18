@@ -3,7 +3,7 @@ name: Build and Publish Docker Images
 on:
   push:
     branches:
-      - main
+      - basic-sql-server
 
   workflow_dispatch:
 
@@ -33,8 +33,8 @@ jobs:
           file: ./Dockerfile.api
           push: true
           tags: |
-            ghcr.io/vinicius05051993/knowledge-hub-api:latest
-            ghcr.io/vinicius05051993/knowledge-hub-api:${{ github.sha }}
+            ghcr.io/vinicius05051993/knowledge-hub-api-sqlserver:latest
+            ghcr.io/vinicius05051993/knowledge-hub-api-sqlserver:${{ github.sha }}
 
       - name: Build and Push Worker
         uses: docker/build-push-action@v6
@@ -43,5 +43,5 @@ jobs:
           file: ./Dockerfile.worker
           push: true
           tags: |
-            ghcr.io/vinicius05051993/knowledge-hub-worker:latest
-            ghcr.io/vinicius05051993/knowledge-hub-worker:${{ github.sha }}
+            ghcr.io/vinicius05051993/knowledge-hub-worker-sqlserver:latest
+            ghcr.io/vinicius05051993/knowledge-hub-worker-sqlserver:${{ github.sha }}
