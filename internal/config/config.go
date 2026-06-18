@@ -18,26 +18,32 @@ type Config struct {
 	DBUser     string
 	DBPassword string
 
+	UseManagedIdentity bool
+
 	OpenSearchHost string
 	OpenSearchPort string
 }
 
 func Load() (*Config, error) {
 
-	err := godotenv.Load()
-
-	if err != nil {
+	if err := godotenv.Load(); err != nil {
 		log.Println(".env not found")
 	}
 
 	cfg := &Config{
 		AppPort: os.Getenv("APP_PORT"),
 
-		DBHost:     os.Getenv("DB_HOST"),
-		DBPort:     os.Getenv("DB_PORT"),
-		DBName:     os.Getenv("DB_NAME"),
+		DBHost: os.Getenv("DB_HOST"),
+		DBPort: os.Getenv("DB_PORT"),
+		DBName: os.Getenv("DB_NAME"),
+
 		DBUser:     os.Getenv("DB_USER"),
 		DBPassword: os.Getenv("DB_PASSWORD"),
+
+		UseManagedIdentity: strings.EqualFold(
+			os.Getenv("USE_MANAGED_IDENTITY"),
+			"true",
+		),
 
 		OpenSearchHost: os.Getenv("OPENSEARCH_HOST"),
 		OpenSearchPort: os.Getenv("OPENSEARCH_PORT"),
@@ -57,20 +63,24 @@ func (c *Config) Validate() error {
 		"DB_HOST":         c.DBHost,
 		"DB_PORT":         c.DBPort,
 		"DB_NAME":         c.DBName,
-		"DB_USER":         c.DBUser,
-		"DB_PASSWORD":     c.DBPassword,
 		"OPENSEARCH_HOST": c.OpenSearchHost,
 		"OPENSEARCH_PORT": c.OpenSearchPort,
 	}
 
 	for key, value := range required {
-
 		if strings.TrimSpace(value) == "" {
+			return fmt.Errorf("%s is required", key)
+		}
+	}
 
-			return fmt.Errorf(
-				"%s is required",
-				key,
-			)
+	if !c.UseManagedIdentity {
+
+		if strings.TrimSpace(c.DBUser) == "" {
+			return fmt.Errorf("DB_USER is required")
+		}
+
+		if strings.TrimSpace(c.DBPassword) == "" {
+			return fmt.Errorf("DB_PASSWORD is required")
 		}
 	}
 
