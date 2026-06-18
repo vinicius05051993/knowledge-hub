@@ -7,9 +7,9 @@ import (
 	"indexer/internal/apikeys"
 	"indexer/internal/config"
 	"indexer/internal/database"
+	"indexer/internal/documentfilters"
 	"indexer/internal/documents"
 	"indexer/internal/opensearch"
-	"indexer/internal/documentfilters"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -17,11 +17,11 @@ import (
 func createTestConfig() *config.Config {
 
 	return &config.Config{
-		MySQLHost:     "localhost",
-		MySQLPort:     "3306",
-		MySQLDatabase: "indexer",
-		MySQLUser:     "root",
-		MySQLPassword: "root",
+		DBHost:     "localhost",
+		DBPort:     "1433",
+		DBName:     "indexer",
+		DBUser:     "sa",
+		DBPassword: "StrongPassword123!",
 
 		OpenSearchHost: "localhost",
 		OpenSearchPort: "9200",
@@ -34,7 +34,7 @@ func createDB(
 
 	cfg := createTestConfig()
 
-	db, err := database.NewMySQL(cfg)
+	db, err := database.New(*cfg)
 
 	if err != nil {
 		t.Fatal(err)

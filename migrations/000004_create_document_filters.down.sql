@@ -1,1 +1,1 @@
-DROP TABLE document_filters;
+DROP TABLE IF EXISTS document_filters;

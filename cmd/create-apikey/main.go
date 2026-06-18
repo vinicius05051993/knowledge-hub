@@ -41,7 +41,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	db, err := database.NewMySQL(cfg)
+	db, err := database.New(*cfg)
 
 	if err != nil {
 		log.Fatal(err)
@@ -49,13 +49,13 @@ func main() {
 
 	defer db.Close()
 
-	repository :=
-		apikeys.NewRepository(db)
+	repository := apikeys.NewRepository(
+		db,
+	)
 
-	service :=
-		apikeys.NewService(
-			repository,
-		)
+	service := apikeys.NewService(
+		repository,
+	)
 
 	apiKey, err := service.Create(
 		context.Background(),

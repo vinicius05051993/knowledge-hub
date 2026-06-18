@@ -26,12 +26,13 @@ func (r *Repository) FindByHash(
 ) (*APIKey, error) {
 
 	query := `
-	SELECT *
+	SELECT TOP 1 *
 	FROM api_keys
 	WHERE api_key_hash = ?
-	AND active = TRUE
-	LIMIT 1
+	AND active = 1
 	`
+
+	query = r.db.Rebind(query)
 
 	var apiKey APIKey
 
@@ -68,6 +69,8 @@ func (r *Repository) Create(
 	)
 	`
 
+	query = r.db.Rebind(query)
+
 	_, err := r.db.ExecContext(
 		ctx,
 		query,
@@ -87,13 +90,17 @@ func (r *Repository) DeleteByNamespace(
 	namespace string,
 ) error {
 
+	query := `
+	DELETE
+	FROM api_keys
+	WHERE namespace = ?
+	`
+
+	query = r.db.Rebind(query)
+
 	_, err := r.db.ExecContext(
 		ctx,
-		`
-		DELETE
-		FROM api_keys
-		WHERE namespace = ?
-		`,
+		query,
 		namespace,
 	)
 

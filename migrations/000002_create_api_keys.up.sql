@@ -1,5 +1,6 @@
 CREATE TABLE api_keys (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
 
     name VARCHAR(255) NOT NULL,
 
@@ -7,17 +8,19 @@ CREATE TABLE api_keys (
 
     api_key_hash CHAR(64) NOT NULL,
 
-    permissions JSON NULL,
+    permissions NVARCHAR(MAX) NULL,
 
-    active BOOLEAN NOT NULL DEFAULT TRUE,
+    active BIT NOT NULL DEFAULT 1,
 
     created_at DATETIME NOT NULL,
 
-    UNIQUE KEY uk_api_key_hash (
-        api_key_hash
-    ),
+    CONSTRAINT uk_api_key_hash
+        UNIQUE (
+            api_key_hash
+        ),
 
-    UNIQUE KEY uk_namespace (
-        namespace
-    )
+    CONSTRAINT uk_namespace
+        UNIQUE (
+            namespace
+        )
 );

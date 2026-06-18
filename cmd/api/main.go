@@ -29,7 +29,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	db, err := database.NewMySQL(cfg)
+	db, err := database.New(*cfg)
 
 	if err != nil {
 		log.Fatal(err)

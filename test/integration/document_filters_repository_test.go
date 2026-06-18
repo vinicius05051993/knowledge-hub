@@ -95,16 +95,20 @@ func TestDocumentFiltersRepository(
 
 	var rows []FilterRow
 
+	query := `
+	SELECT
+		document_key,
+		field_name,
+		field_value
+	FROM document_filters
+	WHERE document_key = ?
+	`
+
+	query = db.Rebind(query)
+
 	err = db.Select(
 		&rows,
-		`
-		SELECT
-			document_key,
-			field_name,
-			field_value
-		FROM document_filters
-		WHERE document_key = ?
-		`,
+		query,
 		"test:filters-test",
 	)
 

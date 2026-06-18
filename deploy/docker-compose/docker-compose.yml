@@ -22,7 +22,7 @@ services:
       - .env
 
     depends_on:
-      - mysql
+      - sqlserver
       - opensearch
 
     ports:
@@ -37,23 +37,23 @@ services:
       - .env
 
     depends_on:
-      - mysql
+      - sqlserver
       - opensearch
 
-  mysql:
-    image: mysql:8.4
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
 
     restart: unless-stopped
 
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${DB_PASSWORD}
 
     ports:
-      - "3306:3306"
+      - "1433:1433"
 
     volumes:
-      - mysql_data:/var/lib/mysql
+      - sqlserver_data:/var/opt/mssql
 
   opensearch:
     image: opensearchproject/opensearch:3
@@ -73,5 +73,5 @@ services:
       - opensearch_data:/usr/share/opensearch/data
 
 volumes:
-  mysql_data:
+  sqlserver_data:
   opensearch_data:

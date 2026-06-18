@@ -3,7 +3,7 @@ package documents
 import (
 	"context"
 	"regexp"
-	"strings"
+	"strconv"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -13,16 +13,49 @@ const baseSelect = `
 SELECT
 	d.*,
 	COALESCE(
+	(
+	    SELECT
+	        '{' +
+	        ISNULL(
+	            STRING_AGG(
+	                '"' +
+	                STRING_ESCAPE(df.field_name, 'json') +
+	                '":"' +
+	                STRING_ESCAPE(df.field_value, 'json') +
+	                '"',
+	                ','
+	            ),
+	            ''
+	        )
+	        + '}'
+	    FROM document_filters df
+	    WHERE df.document_key = d.document_key
+	),
+	'{}'
+	) AS payload
+FROM documents d
+`
+
+const baseSelectTop1 = `
+SELECT TOP 1
+	d.*,
+	COALESCE(
 		(
-			SELECT JSON_OBJECTAGG(
-				df.field_name,
-				df.field_value
-			)
+			SELECT
+				'{' +
+				STRING_AGG(
+					'"' +
+					STRING_ESCAPE(df.field_name, 'json') +
+					'":"' +
+					STRING_ESCAPE(df.field_value, 'json') +
+					'"',
+					','
+				) +
+				'}'
 			FROM document_filters df
-			WHERE df.document_key =
-				d.document_key
+			WHERE df.document_key = d.document_key
 		),
-		JSON_OBJECT()
+		'{}'
 	) AS payload
 FROM documents d
 `
@@ -59,12 +92,13 @@ func (r *Repository) FindByExternalID(
 	externalID string,
 ) (*Document, error) {
 
-	query := baseSelect + `
+	query := baseSelectTop1 + `
 	WHERE d.namespace = ?
 	AND d.external_id = ?
 	AND d.deleted_at IS NULL
-	LIMIT 1
 	`
+
+	query = r.db.Rebind(query)
 
 	var document Document
 
@@ -129,15 +163,19 @@ func (r *Repository) DeleteByNamespace(
 	namespace string,
 ) error {
 
+	query := `
+	UPDATE documents
+	SET
+		sync_status = ?,
+		deleted_at = GETDATE()
+	WHERE namespace = ?
+	`
+
+	query = r.db.Rebind(query)
+
 	_, err := r.db.ExecContext(
 		ctx,
-		`
-		UPDATE documents
-		SET
-			sync_status = ?,
-			deleted_at = NOW()
-		WHERE namespace = ?
-		`,
+		query,
 		SyncStatusPendingDelete,
 		namespace,
 	)
@@ -160,7 +198,7 @@ func (r *Repository) DeleteByExternalIDs(
 		UPDATE documents
 		SET
 			sync_status = ?,
-			deleted_at = NOW()
+			deleted_at = GETDATE()
 		WHERE namespace = ?
 		AND external_id IN (?)
 		`,
@@ -315,14 +353,15 @@ func (r *Repository) Search(
 	if len(documentKeys) == 0 {
 
 		query += `
-		LIMIT ?
-		OFFSET ?
+		ORDER BY d.id
+		OFFSET ? ROWS
+		FETCH NEXT ? ROWS ONLY
 		`
 
 		args = append(
 			args,
-			limit,
 			offset,
+			limit,
 		)
 	}
 
@@ -352,12 +391,13 @@ func (r *Repository) FindPendingUpserts(
 ) ([]Document, error) {
 
 	query := `
-	SELECT *
+	SELECT TOP ` + strconv.Itoa(limit) + ` *
 	FROM documents
 	WHERE sync_status = ?
 	ORDER BY id
-	LIMIT ?
 	`
+
+	query = r.db.Rebind(query)
 
 	var documents []Document
 
@@ -366,7 +406,6 @@ func (r *Repository) FindPendingUpserts(
 		&documents,
 		query,
 		SyncStatusPendingUpsert,
-		limit,
 	)
 
 	if err != nil {
@@ -382,12 +421,13 @@ func (r *Repository) FindPendingDeletes(
 ) ([]Document, error) {
 
 	query := `
-	SELECT *
+	SELECT TOP ` + strconv.Itoa(limit) + ` *
 	FROM documents
 	WHERE sync_status = ?
 	ORDER BY id
-	LIMIT ?
 	`
+
+	query = r.db.Rebind(query)
 
 	var documents []Document
 
@@ -396,7 +436,6 @@ func (r *Repository) FindPendingDeletes(
 		&documents,
 		query,
 		SyncStatusPendingDelete,
-		limit,
 	)
 
 	if err != nil {
@@ -412,14 +451,18 @@ func (r *Repository) CountPendingUpserts(
 
 	var count int
 
+	query := `
+	SELECT COUNT(*)
+	FROM documents
+	WHERE sync_status = ?
+	`
+
+	query = r.db.Rebind(query)
+
 	err := r.db.GetContext(
 		ctx,
 		&count,
-		`
-		SELECT COUNT(*)
-		FROM documents
-		WHERE sync_status = ?
-		`,
+		query,
 		SyncStatusPendingUpsert,
 	)
 
@@ -436,14 +479,18 @@ func (r *Repository) CountPendingDeletes(
 
 	var count int
 
+	query := `
+	SELECT COUNT(*)
+	FROM documents
+	WHERE sync_status = ?
+	`
+
+	query = r.db.Rebind(query)
+
 	err := r.db.GetContext(
 		ctx,
 		&count,
-		`
-		SELECT COUNT(*)
-		FROM documents
-		WHERE sync_status = ?
-		`,
+		query,
 		SyncStatusPendingDelete,
 	)
 
@@ -560,27 +607,67 @@ func (r *Repository) upsertChunk(
 	docs []*Document,
 ) error {
 
-	values := make(
-		[]string,
-		0,
-		len(docs),
+	query := `
+	MERGE documents AS target
+	USING (
+		VALUES (
+			?, ?, ?, ?, ?, ?, ?, ?, ?
+		)
+	) AS source (
+		document_key,
+		namespace,
+		external_id,
+		title,
+		document_text,
+		sync_status,
+		deleted_at,
+		created_at,
+		updated_at
 	)
+	ON target.document_key = source.document_key
 
-	args := make(
-		[]any,
-		0,
-		len(docs)*9,
-	)
+	WHEN MATCHED THEN
+		UPDATE SET
+			namespace = source.namespace,
+			external_id = source.external_id,
+			title = source.title,
+			[text] = source.document_text,
+			sync_status = source.sync_status,
+			deleted_at = source.deleted_at,
+			updated_at = source.updated_at
+
+	WHEN NOT MATCHED THEN
+		INSERT (
+			document_key,
+			namespace,
+			external_id,
+			title,
+			[text],
+			sync_status,
+			deleted_at,
+			created_at,
+			updated_at
+		)
+		VALUES (
+			source.document_key,
+			source.namespace,
+			source.external_id,
+			source.title,
+			source.document_text,
+			source.sync_status,
+			source.deleted_at,
+			source.created_at,
+			source.updated_at
+		);
+	`
+
+	query = r.db.Rebind(query)
 
 	for _, doc := range docs {
 
-		values = append(
-			values,
-			"(?,?,?,?,?,?,?,?,?)",
-		)
-
-		args = append(
-			args,
+		_, err := r.db.ExecContext(
+			ctx,
+			query,
 			doc.DocumentKey,
 			doc.Namespace,
 			doc.ExternalID,
@@ -591,34 +678,11 @@ func (r *Repository) upsertChunk(
 			doc.CreatedAt,
 			doc.UpdatedAt,
 		)
+
+		if err != nil {
+			return err
+		}
 	}
 
-	query := `
-	INSERT INTO documents (
-		document_key,
-		namespace,
-		external_id,
-		title,
-		text,
-		sync_status,
-		deleted_at,
-		created_at,
-		updated_at
-	)
-	VALUES ` + strings.Join(values, ",") + `
-	ON DUPLICATE KEY UPDATE
-		title = VALUES(title),
-		text = VALUES(text),
-		sync_status = VALUES(sync_status),
-		deleted_at = VALUES(deleted_at),
-		updated_at = VALUES(updated_at)
-	`
-
-	_, err := r.db.ExecContext(
-		ctx,
-		query,
-		args...,
-	)
-
-	return err
+	return nil
 }

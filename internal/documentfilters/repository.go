@@ -47,13 +47,17 @@ func (r *Repository) DeleteByDocumentKey(
 	documentKey string,
 ) error {
 
+	query := `
+	DELETE
+	FROM document_filters
+	WHERE document_key = ?
+	`
+
+	query = r.db.Rebind(query)
+
 	_, err := r.db.ExecContext(
 		ctx,
-		`
-		DELETE
-		FROM document_filters
-		WHERE document_key = ?
-		`,
+		query,
 		documentKey,
 	)
 
@@ -82,9 +86,7 @@ func (r *Repository) DeleteByDocumentKeys(
 		return err
 	}
 
-	query = r.db.Rebind(
-		query,
-	)
+	query = r.db.Rebind(query)
 
 	_, err = r.db.ExecContext(
 		ctx,
@@ -214,6 +216,8 @@ func (r *Repository) replaceChunk(
 		values,
 		",",
 	)
+
+	query = r.db.Rebind(query)
 
 	_, err := r.db.ExecContext(
 		ctx,
