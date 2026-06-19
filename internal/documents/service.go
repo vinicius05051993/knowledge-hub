@@ -198,7 +198,21 @@ func (s *Service) Search(
 			map[string]map[string]string,
 		)
 
+	seen :=
+	make(
+		map[string]struct{},
+	)
+
 	for i, result := range results {
+
+		if _, ok :=
+			seen[result.DocumentKey]; ok {
+
+			continue
+		}
+
+		seen[result.DocumentKey] =
+			struct{}{}
 
 		normalizedHighlights :=
 			make(
