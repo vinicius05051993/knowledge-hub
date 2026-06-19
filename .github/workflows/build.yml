@@ -4,6 +4,15 @@ on:
   push:
     branches:
       - basic-azure
+    paths:
+      - 'cmd/**'
+      - 'internal/**'
+      - 'migrations/**'
+      - 'Dockerfile.api'
+      - 'Dockerfile.worker'
+      - 'go.mod'
+      - '.github/workflows/**'
+      - '.dockerignore'
 
   workflow_dispatch:
 
