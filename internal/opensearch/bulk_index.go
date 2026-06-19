@@ -35,9 +35,9 @@ func BulkIndexDocuments(
 
 		action := map[string]any{
 			"index": map[string]any{
-				"_index": DocumentsIndex,
-				"_id":    document.DocumentKey,
-			},
+		        "_index": DocumentsIndex,
+		        "_id":    document.ID,
+		    },
 		}
 
 		data, err := json.Marshal(

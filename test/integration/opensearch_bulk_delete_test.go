@@ -21,18 +21,36 @@ func TestBulkDeleteDocuments(
 	documents :=
 		[]*opensearch.Document{
 			{
+				ID:          "test:delete-1#0",
 				DocumentKey: "test:delete-1",
 				Namespace:   "test",
 				ExternalID:  "delete-1",
 				Title:       "Delete Test",
-				Text:        "Document One",
+				Text:        "Document One Chunk 0",
 			},
 			{
+				ID:          "test:delete-1#1",
+				DocumentKey: "test:delete-1",
+				Namespace:   "test",
+				ExternalID:  "delete-1",
+				Title:       "Delete Test",
+				Text:        "Document One Chunk 1",
+			},
+			{
+				ID:          "test:delete-2#0",
 				DocumentKey: "test:delete-2",
 				Namespace:   "test",
 				ExternalID:  "delete-2",
 				Title:       "Delete Test",
-				Text:        "Document Two",
+				Text:        "Document Two Chunk 0",
+			},
+			{
+				ID:          "test:delete-2#1",
+				DocumentKey: "test:delete-2",
+				Namespace:   "test",
+				ExternalID:  "delete-2",
+				Title:       "Delete Test",
+				Text:        "Document Two Chunk 1",
 			},
 		}
 
@@ -65,32 +83,36 @@ func TestBulkDeleteDocuments(
 			client,
 			"Delete",
 			0,
-			10,
+			20,
 		)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	found := 0
+	found := map[string]bool{
+		"test:delete-1": false,
+		"test:delete-2": false,
+	}
 
 	for _, result := range results {
 
-		if result.DocumentKey ==
-			"test:delete-1" ||
-			result.DocumentKey ==
-				"test:delete-2" {
+		if _, ok :=
+			found[result.DocumentKey]; ok {
 
-			found++
+			found[result.DocumentKey] = true
 		}
 	}
 
-	if found != 2 {
+	for documentKey, exists := range found {
 
-		t.Fatalf(
-			"expected 2 indexed documents got %d",
-			found,
-		)
+		if !exists {
+
+			t.Fatalf(
+				"document %s not found",
+				documentKey,
+			)
+		}
 	}
 
 	err = opensearch.DeleteDocuments(
@@ -112,7 +134,7 @@ func TestBulkDeleteDocuments(
 			client,
 			"Delete",
 			0,
-			10,
+			20,
 		)
 
 	if err != nil {

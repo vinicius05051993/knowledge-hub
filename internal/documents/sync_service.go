@@ -3,9 +3,11 @@ package documents
 import (
 	"context"
 	"strings"
+	"fmt"
 
 	"indexer/internal/metrics"
 	"indexer/internal/opensearch"
+	"indexer/internal/chunker"
 )
 
 type SyncIndexer interface {
@@ -112,17 +114,21 @@ func (s *SyncService) ProcessPendingUpserts(
 			continue
 		}
 
-		bulkDocuments =
-			append(
-				bulkDocuments,
-				&opensearch.Document{
-					DocumentKey: document.DocumentKey,
-					Namespace:   document.Namespace,
-					ExternalID:  document.ExternalID,
-					Title:       document.Title,
-					Text:        document.Text,
-				},
-			)
+		chunks := chunker.Split(document.Text)
+
+		for i, chunk := range chunks {
+		    bulkDocuments = append(
+		        bulkDocuments,
+		        &opensearch.Document{
+		            ID:          fmt.Sprintf("%s#%d", document.DocumentKey, i),
+		            DocumentKey: document.DocumentKey,
+		            Namespace:   document.Namespace,
+		            ExternalID:  document.ExternalID,
+		            Title:       document.Title,
+		            Text:        chunk,
+		        },
+		    )
+		}
 	}
 
 	if len(bulkDocuments) > 0 {

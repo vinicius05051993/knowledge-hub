@@ -16,29 +16,32 @@ func CreateDocumentsIndex(
 ) error {
 
 	body := `
-{
-  "settings": {
-    "number_of_shards": 1,
-    "number_of_replicas": 0
-  },
-  "mappings": {
-    "properties": {
-      "namespace": {
-        "type": "keyword"
-      },
-      "external_id": {
-        "type": "keyword"
-      },
-      "title": {
-        "type": "text"
-      },
-      "text": {
-        "type": "text"
-      }
-    }
-  }
-}
-`
+	{
+	  "settings": {
+	    "number_of_shards": 1,
+	    "number_of_replicas": 0
+	  },
+	  "mappings": {
+	    "properties": {
+	      "document_key": {
+	        "type": "keyword"
+	      },
+	      "namespace": {
+	        "type": "keyword"
+	      },
+	      "external_id": {
+	        "type": "keyword"
+	      },
+	      "title": {
+	        "type": "text"
+	      },
+	      "text": {
+	        "type": "text"
+	      }
+	    }
+	  }
+	}
+	`
 
 	req, err := http.NewRequestWithContext(
 		ctx,

@@ -20,7 +20,10 @@ func DeleteDocuments(
 		return nil
 	}
 
-	path := "_bulk"
+	path := fmt.Sprintf(
+		"%s/_delete_by_query",
+		DocumentsIndex,
+	)
 
 	namespace, _, found :=
 		strings.Cut(
@@ -28,38 +31,31 @@ func DeleteDocuments(
 			":",
 		)
 
-	if found && strings.Contains(namespace,"test") {
+	if found && strings.Contains(namespace, "test") {
 		path += "?refresh=true"
 	}
 
-	var body bytes.Buffer
-
-	for _, documentKey := range documentKeys {
-
-		action := map[string]any{
-			"delete": map[string]any{
-				"_index": DocumentsIndex,
-				"_id":    documentKey,
+	body := map[string]any{
+		"query": map[string]any{
+			"terms": map[string]any{
+				"document_key": documentKeys,
 			},
-		}
+		},
+	}
 
-		data, err := json.Marshal(
-			action,
-		)
+	payload, err := json.Marshal(
+		body,
+	)
 
-		if err != nil {
-			return err
-		}
-
-		body.Write(data)
-		body.WriteByte('\n')
+	if err != nil {
+		return err
 	}
 
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodPost,
 		client.URL(path),
-		&body,
+		bytes.NewReader(payload),
 	)
 
 	if err != nil {
@@ -68,7 +64,7 @@ func DeleteDocuments(
 
 	req.Header.Set(
 		"Content-Type",
-		"application/x-ndjson",
+		"application/json",
 	)
 
 	resp, err := client.httpClient.Do(
@@ -88,13 +84,14 @@ func DeleteDocuments(
 		)
 
 		return fmt.Errorf(
-			"opensearch bulk delete error: %s",
+			"opensearch delete_by_query error: %s",
 			string(content),
 		)
 	}
 
 	var result struct {
-		Errors bool `json:"errors"`
+		Deleted int64 `json:"deleted"`
+		Failures []any `json:"failures"`
 	}
 
 	err = json.NewDecoder(
@@ -107,15 +104,11 @@ func DeleteDocuments(
 		return err
 	}
 
-	if result.Errors {
-
-		content, _ := io.ReadAll(
-			resp.Body,
-		)
+	if len(result.Failures) > 0 {
 
 		return fmt.Errorf(
-			"opensearch bulk delete returned errors: %s",
-			string(content),
+			"opensearch delete_by_query returned %d failures",
+			len(result.Failures),
 		)
 	}
 

@@ -24,14 +24,22 @@ func IndexDocument(
 		return err
 	}
 
+	documentID := document.ID
+
+	if documentID == "" {
+		documentID = document.DocumentKey
+	}
+
 	path := fmt.Sprintf(
 		"%s/_doc/%s",
 		DocumentsIndex,
-		document.DocumentKey,
+		documentID,
 	)
 
-	if strings.Contains(document.Namespace,"test") {
-
+	if strings.Contains(
+		document.Namespace,
+		"test",
+	) {
 		path += "?refresh=true"
 	}
 
@@ -81,47 +89,11 @@ func DeleteDocument(
 			":" +
 			externalID
 
-	path := fmt.Sprintf(
-		"%s/_doc/%s",
-		DocumentsIndex,
-		documentKey,
-	)
-
-	if namespace == "test" {
-
-		path += "?refresh=true"
-	}
-
-	req, err := http.NewRequestWithContext(
+	return DeleteDocuments(
 		ctx,
-		http.MethodDelete,
-		client.URL(path),
-		nil,
+		client,
+		[]string{
+			documentKey,
+		},
 	)
-
-	if err != nil {
-		return err
-	}
-
-	resp, err := client.Do(req)
-
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 300 {
-
-		content, _ := io.ReadAll(
-			resp.Body,
-		)
-
-		return fmt.Errorf(
-			"opensearch error: %s",
-			string(content),
-		)
-	}
-
-	return nil
 }

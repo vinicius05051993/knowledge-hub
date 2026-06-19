@@ -12,6 +12,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o api ./cmd/api
 RUN CGO_ENABLED=0 GOOS=linux go build -o migrate ./cmd/migrate
 RUN CGO_ENABLED=0 GOOS=linux go build -o create-index ./cmd/create-index
+RUN CGO_ENABLED=0 GOOS=linux go build -o create-apikey ./cmd/create-apikey
 
 FROM debian:bookworm-slim
 
@@ -24,6 +25,7 @@ WORKDIR /app
 COPY --from=builder /app/api .
 COPY --from=builder /app/migrate .
 COPY --from=builder /app/create-index .
+COPY --from=builder /app/create-apikey .
 
 COPY migrations ./migrations
 

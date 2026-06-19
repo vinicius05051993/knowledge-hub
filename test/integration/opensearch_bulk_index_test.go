@@ -21,18 +21,36 @@ func TestBulkIndexDocuments(
 	documents :=
 		[]*opensearch.Document{
 			{
+				ID:          "test:bulk-1#0",
 				DocumentKey: "test:bulk-1",
 				Namespace:   "test",
 				ExternalID:  "bulk-1",
 				Title:       "Magento",
-				Text:        "Magento Ecommerce",
+				Text:        "Magento Ecommerce Chunk 0",
 			},
 			{
+				ID:          "test:bulk-1#1",
+				DocumentKey: "test:bulk-1",
+				Namespace:   "test",
+				ExternalID:  "bulk-1",
+				Title:       "Magento",
+				Text:        "Magento Ecommerce Chunk 1",
+			},
+			{
+				ID:          "test:bulk-2#0",
 				DocumentKey: "test:bulk-2",
 				Namespace:   "test",
 				ExternalID:  "bulk-2",
 				Title:       "Magento",
-				Text:        "Magento Ecommerce",
+				Text:        "Magento Ecommerce Chunk 0",
+			},
+			{
+				ID:          "test:bulk-2#1",
+				DocumentKey: "test:bulk-2",
+				Namespace:   "test",
+				ExternalID:  "bulk-2",
+				Title:       "Magento",
+				Text:        "Magento Ecommerce Chunk 1",
 			},
 		}
 
@@ -65,7 +83,7 @@ func TestBulkIndexDocuments(
 			client,
 			"Magento",
 			0,
-			10,
+			20,
 		)
 
 	if err != nil {

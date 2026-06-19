@@ -1,6 +1,8 @@
 package opensearch
 
 type Document struct {
+	ID string `json:"-"`
+
 	DocumentKey string `json:"document_key"`
 
 	Namespace string `json:"namespace"`

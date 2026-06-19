@@ -49,9 +49,11 @@ func TestDocumentServiceUpsertPayloadOnly(
 			"payload-test",
 		)
 
-		syncDocuments(
-			t,
-			db,
+		_ = filterRepository.DeleteByDocumentKeys(
+			context.Background(),
+			[]string{
+				"payload-test:payload-only",
+			},
 		)
 
 		_ = db.Close()

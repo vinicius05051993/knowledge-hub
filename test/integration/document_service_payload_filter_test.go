@@ -49,9 +49,11 @@ func TestDocumentServiceSearchPayloadOnlyByFilter(
 			"payload-filter",
 		)
 
-		syncDocuments(
-			t,
-			db,
+		_ = filterRepository.DeleteByDocumentKeys(
+			context.Background(),
+			[]string{
+				"payload-filter:payload-only",
+			},
 		)
 
 		_ = db.Close()
