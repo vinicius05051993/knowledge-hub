@@ -195,15 +195,59 @@ func (s *Service) Search(
 
 	highlights :=
 		make(
-			map[string]map[string]string,
+			map[string]map[string][]string,
 		)
 
 	seen :=
-	make(
-		map[string]struct{},
-	)
+		make(
+			map[string]struct{},
+		)
 
 	for i, result := range results {
+
+		if _, ok :=
+			highlights[result.DocumentKey]; !ok {
+
+			highlights[result.DocumentKey] =
+				make(
+					map[string][]string,
+				)
+		}
+
+		for field, values :=
+			range result.Highlights {
+
+			if len(values) == 0 ||
+				strings.TrimSpace(values[0]) == "" {
+
+				continue
+			}
+
+			alreadyExists := false
+
+			for _, existing := range highlights[result.DocumentKey][field] {
+			    if existing == values[0] {
+			        alreadyExists = true
+			        break
+			    }
+			}
+
+			if alreadyExists {
+			    continue
+			}
+
+			if len(
+			    highlights[result.DocumentKey][field],
+			) >= 5 {
+
+			    continue
+			}
+
+			highlights[result.DocumentKey][field] = append(
+			    highlights[result.DocumentKey][field],
+			    values[0],
+			)
+		}
 
 		if _, ok :=
 			seen[result.DocumentKey]; ok {
@@ -213,26 +257,6 @@ func (s *Service) Search(
 
 		seen[result.DocumentKey] =
 			struct{}{}
-
-		normalizedHighlights :=
-			make(
-				map[string]string,
-			)
-
-		for field, values :=
-			range result.Highlights {
-
-			if len(values) == 0 {
-				continue
-			}
-
-			normalizedHighlights[field] =
-				values[0]
-		}
-
-		highlights[
-			result.DocumentKey,
-		] = normalizedHighlights
 
 		documentKeys = append(
 			documentKeys,
@@ -280,14 +304,30 @@ func (s *Service) Search(
 
 	for _, document := range documents {
 
+		normalizedHighlights :=
+			make(
+				map[string]string,
+			)
+
+		for field, values :=
+			range highlights[
+				document.DocumentKey,
+			] {
+
+			normalizedHighlights[field] =
+				strings.Join(
+					values,
+					" ... ",
+				)
+		}
+
 		response = append(
 			response,
 			SearchDocument{
 				Document: document,
 
-				Highlights: highlights[
-					document.DocumentKey,
-				],
+				Highlights:
+					normalizedHighlights,
 			},
 		)
 	}
