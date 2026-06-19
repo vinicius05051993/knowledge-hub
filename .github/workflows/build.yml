@@ -3,7 +3,7 @@ name: Build and Publish Docker Images
 on:
   push:
     branches:
-      - main
+      - semantic-search
     paths:
       - 'cmd/**'
       - 'internal/**'
@@ -42,8 +42,8 @@ jobs:
           file: ./Dockerfile.api
           push: true
           tags: |
-            ghcr.io/vinicius05051993/knowledge-hub-api:latest
-            ghcr.io/vinicius05051993/knowledge-hub-api:${{ github.sha }}
+            ghcr.io/vinicius05051993/knowledge-hub-api-ss:latest
+            ghcr.io/vinicius05051993/knowledge-hub-api-ss:${{ github.sha }}
 
       - name: Build and Push Worker
         uses: docker/build-push-action@v6
@@ -52,5 +52,5 @@ jobs:
           file: ./Dockerfile.worker
           push: true
           tags: |
-            ghcr.io/vinicius05051993/knowledge-hub-worker:latest
-            ghcr.io/vinicius05051993/knowledge-hub-worker:${{ github.sha }}
+            ghcr.io/vinicius05051993/knowledge-hub-worker-ss:latest
+            ghcr.io/vinicius05051993/knowledge-hub-worker-ss:${{ github.sha }}

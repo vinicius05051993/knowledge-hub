@@ -14,7 +14,7 @@ services:
       - ../nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
 
   api:
-    image: ghcr.io/vinicius05051993/knowledge-hub-api:latest
+    image: ghcr.io/vinicius05051993/knowledge-hub-api-ss:latest
 
     restart: unless-stopped
 
@@ -29,7 +29,7 @@ services:
       - "8080:8080"
 
   sync-worker:
-    image: ghcr.io/vinicius05051993/knowledge-hub-worker:latest
+    image: ghcr.io/vinicius05051993/knowledge-hub-worker-ss:latest
 
     restart: unless-stopped
 
