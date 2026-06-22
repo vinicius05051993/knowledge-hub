@@ -611,7 +611,8 @@ func (r *Repository) upsertChunk(
 	MERGE documents AS target
 	USING (
 		VALUES (
-			?, ?, ?, ?, ?, ?, ?, ?, ?
+			@p1, @p2, @p3, @p4, @p5,
+			@p6, @p7, @p8, @p9
 		)
 	) AS source (
 		document_key,
@@ -660,8 +661,6 @@ func (r *Repository) upsertChunk(
 			source.updated_at
 		);
 	`
-
-	query = r.db.Rebind(query)
 
 	for _, doc := range docs {
 

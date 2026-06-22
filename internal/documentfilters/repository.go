@@ -2,6 +2,7 @@ package documentfilters
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -191,11 +192,15 @@ func (r *Repository) replaceChunk(
 		len(rows)*3,
 	)
 
+	param := 1
+
 	for _, row := range rows {
 
 		values = append(
 			values,
-			"(?,?,?)",
+			"(@p"+strconv.Itoa(param)+
+				",@p"+strconv.Itoa(param+1)+
+				",@p"+strconv.Itoa(param+2)+")",
 		)
 
 		args = append(
@@ -204,6 +209,8 @@ func (r *Repository) replaceChunk(
 			row.Field,
 			row.Value,
 		)
+
+		param += 3
 	}
 
 	query := `
@@ -216,8 +223,6 @@ func (r *Repository) replaceChunk(
 		values,
 		",",
 	)
-
-	query = r.db.Rebind(query)
 
 	_, err := r.db.ExecContext(
 		ctx,
