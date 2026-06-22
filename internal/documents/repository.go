@@ -2,6 +2,8 @@ package documents
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 
@@ -208,7 +210,18 @@ func (r *Repository) DeleteByExternalIDs(
 	)
 
 	if err != nil {
-		return err
+
+		log.Printf(
+			"DeleteByExternalIDs sqlx.In failed\nnamespace=%s\nexternalIDs=%d\nerror=%v",
+			namespace,
+			len(externalIDs),
+			err,
+		)
+
+		return fmt.Errorf(
+			"documents.Repository.DeleteByExternalIDs.sqlxIn: %w",
+			err,
+		)
 	}
 
 	query = r.db.Rebind(
@@ -221,7 +234,24 @@ func (r *Repository) DeleteByExternalIDs(
 		args...,
 	)
 
-	return err
+	if err != nil {
+
+		log.Printf(
+			"DeleteByExternalIDs failed\nnamespace=%s\nexternalIDs=%d\nquery:\n%s\nargs=%d\nerror=%v",
+			namespace,
+			len(externalIDs),
+			query,
+			len(args),
+			err,
+		)
+
+		return fmt.Errorf(
+			"documents.Repository.DeleteByExternalIDs: %w",
+			err,
+		)
+	}
+
+	return nil
 }
 
 func (r *Repository) Search(
@@ -409,7 +439,18 @@ func (r *Repository) FindPendingUpserts(
 	)
 
 	if err != nil {
-		return nil, err
+
+		log.Printf(
+			"FindPendingUpserts failed\nlimit=%d\nquery:\n%s\nerror:%v",
+			limit,
+			query,
+			err,
+		)
+
+		return nil, fmt.Errorf(
+			"documents.Repository.FindPendingUpserts: %w",
+			err,
+		)
 	}
 
 	return documents, nil
@@ -439,7 +480,18 @@ func (r *Repository) FindPendingDeletes(
 	)
 
 	if err != nil {
-		return nil, err
+
+		log.Printf(
+			"FindPendingDeletes failed\nlimit=%d\nquery:\n%s\nerror:%v",
+			limit,
+			query,
+			err,
+		)
+
+		return nil, fmt.Errorf(
+			"documents.Repository.FindPendingDeletes: %w",
+			err,
+		)
 	}
 
 	return documents, nil
@@ -467,7 +519,17 @@ func (r *Repository) CountPendingUpserts(
 	)
 
 	if err != nil {
-		return 0, err
+
+		log.Printf(
+			"CountPendingUpserts failed\nquery:\n%s\nerror:%v",
+			query,
+			err,
+		)
+
+		return 0, fmt.Errorf(
+			"documents.Repository.CountPendingUpserts: %w",
+			err,
+		)
 	}
 
 	return count, nil
@@ -495,7 +557,17 @@ func (r *Repository) CountPendingDeletes(
 	)
 
 	if err != nil {
-		return 0, err
+
+		log.Printf(
+			"CountPendingDeletes failed\nquery:\n%s\nerror:%v",
+			query,
+			err,
+		)
+
+		return 0, fmt.Errorf(
+			"documents.Repository.CountPendingDeletes: %w",
+			err,
+		)
 	}
 
 	return count, nil
@@ -523,7 +595,17 @@ func (r *Repository) MarkSyncedByDocumentKeys(
 	)
 
 	if err != nil {
-		return err
+
+		log.Printf(
+			"MarkSyncedByDocumentKeys sqlx.In failed\nkeys=%d\nerror=%v",
+			len(documentKeys),
+			err,
+		)
+
+		return fmt.Errorf(
+			"documents.Repository.MarkSyncedByDocumentKeys.sqlxIn: %w",
+			err,
+		)
 	}
 
 	query = r.db.Rebind(
@@ -536,7 +618,23 @@ func (r *Repository) MarkSyncedByDocumentKeys(
 		args...,
 	)
 
-	return err
+	if err != nil {
+
+		log.Printf(
+			"MarkSyncedByDocumentKeys failed\nkeys=%d\nquery:\n%s\nargs=%d\nerror=%v",
+			len(documentKeys),
+			query,
+			len(args),
+			err,
+		)
+
+		return fmt.Errorf(
+			"documents.Repository.MarkSyncedByDocumentKeys: %w",
+			err,
+		)
+	}
+
+	return nil
 }
 
 func (r *Repository) DeleteByDocumentKeys(
@@ -558,7 +656,17 @@ func (r *Repository) DeleteByDocumentKeys(
 	)
 
 	if err != nil {
-		return err
+
+		log.Printf(
+			"DeleteByDocumentKeys sqlx.In failed\nkeys=%d\nerror=%v",
+			len(documentKeys),
+			err,
+		)
+
+		return fmt.Errorf(
+			"documents.Repository.DeleteByDocumentKeys.sqlxIn: %w",
+			err,
+		)
 	}
 
 	query = r.db.Rebind(
@@ -571,7 +679,23 @@ func (r *Repository) DeleteByDocumentKeys(
 		args...,
 	)
 
-	return err
+	if err != nil {
+
+		log.Printf(
+			"DeleteByDocumentKeys failed\nkeys=%d\nquery:\n%s\nargs=%d\nerror=%v",
+			len(documentKeys),
+			query,
+			len(args),
+			err,
+		)
+
+		return fmt.Errorf(
+			"documents.Repository.DeleteByDocumentKeys: %w",
+			err,
+		)
+	}
+
+	return nil
 }
 
 func (r *Repository) UpsertBatch(
@@ -679,7 +803,20 @@ func (r *Repository) upsertChunk(
 		)
 
 		if err != nil {
-			return err
+
+			log.Printf(
+			    "upsertChunk failed | documentKey=%s | namespace=%s | externalID=%s | error=%v",
+			    doc.DocumentKey,
+			    doc.Namespace,
+			    doc.ExternalID,
+			    err,
+			)
+
+			return fmt.Errorf(
+				"documents.Repository.upsertChunk documentKey=%s: %w",
+				doc.DocumentKey,
+				err,
+			)
 		}
 	}
 
