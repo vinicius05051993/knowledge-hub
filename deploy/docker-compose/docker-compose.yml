@@ -14,7 +14,7 @@ services:
       - ../nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
 
   api:
-    image: ghcr.io/vinicius05051993/knowledge-hub-api-sqlserver:latest
+    image: ghcr.io/vinicius05051993/knowledge-hub-api-azure:latest
 
     restart: unless-stopped
 
@@ -29,7 +29,7 @@ services:
       - "8080:8080"
 
   sync-worker:
-    image: ghcr.io/vinicius05051993/knowledge-hub-worker-sqlserver:latest
+    image: ghcr.io/vinicius05051993/knowledge-hub-worker-azure:latest
 
     restart: unless-stopped
 
