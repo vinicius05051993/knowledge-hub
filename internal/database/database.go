@@ -71,10 +71,14 @@ func OpenDatabase(cfg config.Config) (*sql.DB, string, error) {
 
 func New(cfg config.Config) (*sqlx.DB, error) {
 
-	db, driver, err := OpenDatabase(cfg)
+	db, _, err := OpenDatabase(cfg)
+
 	if err != nil {
 		return nil, err
 	}
 
-	return sqlx.NewDb(db, driver), nil
+	return sqlx.NewDb(
+		db,
+		"sqlserver",
+	), nil
 }
