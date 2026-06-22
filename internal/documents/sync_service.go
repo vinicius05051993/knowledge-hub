@@ -8,6 +8,7 @@ import (
 	"indexer/internal/metrics"
 	"indexer/internal/opensearch"
 	"indexer/internal/chunker"
+	"indexer/internal/embeddings"
 )
 
 type SyncIndexer interface {
@@ -30,16 +31,19 @@ type SyncIndexer interface {
 type SyncService struct {
 	repository *Repository
 	indexer    SyncIndexer
+	embedder   embeddings.Provider
 }
 
 func NewSyncService(
 	repository *Repository,
 	indexer SyncIndexer,
+	embedder embeddings.Provider,
 ) *SyncService {
 
 	return &SyncService{
 		repository: repository,
 		indexer:    indexer,
+		embedder:   embedder,
 	}
 }
 
@@ -117,17 +121,38 @@ func (s *SyncService) ProcessPendingUpserts(
 		chunks := chunker.Split(document.Text)
 
 		for i, chunk := range chunks {
-		    bulkDocuments = append(
-		        bulkDocuments,
-		        &opensearch.Document{
-		            ID:          fmt.Sprintf("%s#%d", document.DocumentKey, i),
-		            DocumentKey: document.DocumentKey,
-		            Namespace:   document.Namespace,
-		            ExternalID:  document.ExternalID,
-		            Title:       document.Title,
-		            Text:        chunk,
-		        },
-		    )
+
+			content := strings.TrimSpace(
+				document.Title + "\n" + chunk,
+			)
+
+			embedding, err :=
+				s.embedder.GenerateEmbedding(
+					ctx,
+					content,
+				)
+
+			if err != nil {
+				return err
+			}
+
+			doc := &opensearch.Document{
+				ID:          fmt.Sprintf("%s#%d", document.DocumentKey, i),
+				DocumentKey: document.DocumentKey,
+				Namespace:   document.Namespace,
+				ExternalID:  document.ExternalID,
+				Title:       document.Title,
+				Text:        chunk,
+			}
+
+			if len(embedding) > 0 {
+				doc.Embedding = embedding
+			}
+
+			bulkDocuments = append(
+				bulkDocuments,
+				doc,
+			)
 		}
 	}
 

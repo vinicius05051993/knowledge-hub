@@ -12,6 +12,8 @@ type Document struct {
 	Title string `json:"title"`
 
 	Text string `json:"text"`
+
+	Embedding []float32 `json:"embedding,omitempty"`
 }
 
 type SearchResult struct {

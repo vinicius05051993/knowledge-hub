@@ -22,6 +22,7 @@ func main() {
 	err = opensearch.CreateDocumentsIndex(
 		context.Background(),
 		client,
+		cfg,
 	)
 
 	if err != nil {

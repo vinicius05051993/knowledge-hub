@@ -20,6 +20,7 @@ func ensureDocumentsIndex(
 		opensearch.CreateDocumentsIndex(
 			context.Background(),
 			client,
+			cfg,
 		)
 
 	if err != nil {

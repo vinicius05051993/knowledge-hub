@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	"indexer/internal/config"
 )
 
 const DocumentsIndex = "documents"
@@ -13,13 +15,17 @@ const DocumentsIndex = "documents"
 func CreateDocumentsIndex(
 	ctx context.Context,
 	client *Client,
+	cfg *config.Config,
 ) error {
 
-	body := `
+	body := fmt.Sprintf(`
 	{
 	  "settings": {
 	    "number_of_shards": 1,
-	    "number_of_replicas": 0
+	    "number_of_replicas": 0,
+	    "index": {
+	      "knn": true
+	    }
 	  },
 	  "mappings": {
 	    "properties": {
@@ -37,11 +43,17 @@ func CreateDocumentsIndex(
 	      },
 	      "text": {
 	        "type": "text"
+	      },
+	      "embedding": {
+	        "type": "knn_vector",
+	        "dimension": %d
 	      }
 	    }
 	  }
 	}
-	`
+	`,
+		cfg.EmbeddingDimension,
+	)
 
 	req, err := http.NewRequestWithContext(
 		ctx,

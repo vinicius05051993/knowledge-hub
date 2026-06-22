@@ -12,6 +12,7 @@ import (
 	"indexer/internal/config"
 	"indexer/internal/database"
 	"indexer/internal/documents"
+	"indexer/internal/embeddings"
 	"indexer/internal/metrics"
 	"indexer/internal/opensearch"
 	"indexer/internal/server"
@@ -73,10 +74,13 @@ func main() {
 			db,
 		)
 
+	embedder := &embeddings.MockProvider{}
+
 	syncService :=
 		documents.NewSyncService(
 			documentRepository,
 			opensearchService,
+			embedder,
 		)
 
 	log.Println(

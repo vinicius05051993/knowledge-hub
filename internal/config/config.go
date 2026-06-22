@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -20,6 +21,8 @@ type Config struct {
 
 	OpenSearchHost string
 	OpenSearchPort string
+
+	EmbeddingDimension int
 }
 
 func Load() (*Config, error) {
@@ -28,6 +31,25 @@ func Load() (*Config, error) {
 
 	if err != nil {
 		log.Println(".env not found")
+	}
+
+	embeddingDimension := 384
+
+	if value := strings.TrimSpace(
+		os.Getenv("EMBEDDING_DIMENSION"),
+	); value != "" {
+
+		parsed, err := strconv.Atoi(value)
+
+		if err != nil {
+
+			return nil, fmt.Errorf(
+				"invalid EMBEDDING_DIMENSION: %w",
+				err,
+			)
+		}
+
+		embeddingDimension = parsed
 	}
 
 	cfg := &Config{
@@ -41,6 +63,8 @@ func Load() (*Config, error) {
 
 		OpenSearchHost: os.Getenv("OPENSEARCH_HOST"),
 		OpenSearchPort: os.Getenv("OPENSEARCH_PORT"),
+
+		EmbeddingDimension: embeddingDimension,
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -72,6 +96,13 @@ func (c *Config) Validate() error {
 				key,
 			)
 		}
+	}
+
+	if c.EmbeddingDimension <= 0 {
+
+		return fmt.Errorf(
+			"EMBEDDING_DIMENSION must be greater than zero",
+		)
 	}
 
 	return nil
