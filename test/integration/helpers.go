@@ -22,9 +22,7 @@ func createTestConfig() *config.Config {
 		DBName:     "indexer",
 		DBUser:     "sa",
 		DBPassword: "StrongPassword123!",
-
-		OpenSearchHost: "localhost",
-		OpenSearchPort: "9200",
+		OpenSearchUrl: "http://localhost:9200",
 	}
 }
 

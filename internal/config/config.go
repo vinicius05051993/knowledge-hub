@@ -20,8 +20,7 @@ type Config struct {
 
 	UseManagedIdentity bool
 
-	OpenSearchHost string
-	OpenSearchPort string
+	OpenSearchUrl string
 }
 
 func Load() (*Config, error) {
@@ -45,8 +44,7 @@ func Load() (*Config, error) {
 			"true",
 		),
 
-		OpenSearchHost: os.Getenv("OPENSEARCH_HOST"),
-		OpenSearchPort: os.Getenv("OPENSEARCH_PORT"),
+		OpenSearchUrl: os.Getenv("OPENSEARCH_URL"),
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -63,8 +61,6 @@ func (c *Config) Validate() error {
 		"DB_HOST":         c.DBHost,
 		"DB_PORT":         c.DBPort,
 		"DB_NAME":         c.DBName,
-		"OPENSEARCH_HOST": c.OpenSearchHost,
-		"OPENSEARCH_PORT": c.OpenSearchPort,
 	}
 
 	for key, value := range required {

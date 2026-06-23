@@ -19,11 +19,7 @@ func NewClient(
 ) *Client {
 
 	return &Client{
-		baseURL: fmt.Sprintf(
-			"https://%s:%s",
-			cfg.OpenSearchHost,
-			cfg.OpenSearchPort,
-		),
+		baseURL: cfg.OpenSearchUrl,
 
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
