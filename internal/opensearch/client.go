@@ -20,7 +20,7 @@ func NewClient(
 
 	return &Client{
 		baseURL: fmt.Sprintf(
-			"http://%s:%s",
+			"https://%s:%s",
 			cfg.OpenSearchHost,
 			cfg.OpenSearchPort,
 		),
