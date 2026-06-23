@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 )
 
@@ -40,30 +41,65 @@ func CreateDocumentsIndex(
 }
 `
 
+	url := client.URL(
+		DocumentsIndex,
+	)
+
+	log.Printf(
+		"CreateDocumentsIndex url=%s",
+		url,
+	)
+
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodPut,
-		client.URL(DocumentsIndex),
+		url,
 		bytes.NewBufferString(body),
 	)
 
 	if err != nil {
+
+		log.Printf(
+			"CreateDocumentsIndex request creation failed: %v",
+			err,
+		)
+
 		return err
 	}
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(
+		req,
+	)
 
 	if err != nil {
-		return err
+
+		log.Printf(
+			"CreateDocumentsIndex request failed url=%s error=%v",
+			url,
+			err,
+		)
+
+		return fmt.Errorf(
+			"create documents index request failed: %w",
+			err,
+		)
 	}
 
 	defer resp.Body.Close()
 
+	content, _ := io.ReadAll(
+		resp.Body,
+	)
+
+	log.Printf(
+		"CreateDocumentsIndex response status=%d body=%s",
+		resp.StatusCode,
+		string(content),
+	)
+
 	if resp.StatusCode == http.StatusOK {
 		return nil
 	}
-
-	content, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode == http.StatusBadRequest {
 
@@ -71,52 +107,18 @@ func CreateDocumentsIndex(
 			content,
 			[]byte("resource_already_exists_exception"),
 		) {
+
+			log.Printf(
+				"CreateDocumentsIndex index already exists",
+			)
+
 			return nil
 		}
 	}
 
 	return fmt.Errorf(
-		"opensearch error: %s",
+		"opensearch create index failed status=%d body=%s",
+		resp.StatusCode,
 		string(content),
 	)
-}
-
-func IndexExists(
-	ctx context.Context,
-	client *Client,
-	index string,
-) (bool, error) {
-
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodHead,
-		client.URL(index),
-		nil,
-	)
-
-	if err != nil {
-		return false, err
-	}
-
-	resp, err := client.Do(req)
-
-	if err != nil {
-		return false, err
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusOK {
-		return true, nil
-	}
-
-	if resp.StatusCode == http.StatusNotFound {
-		return false, nil
-	}
-
-	return false,
-		fmt.Errorf(
-			"unexpected status %d",
-			resp.StatusCode,
-		)
 }
