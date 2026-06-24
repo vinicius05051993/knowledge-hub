@@ -353,15 +353,14 @@ func (s *Service) UpsertBatch(
 
 	filtersByDocument :=
 		make(
-			map[string]map[string]string,
+			map[string]map[string][]string,
 		)
 
 	for _, document := range documents {
 
-		filters :=
-			make(
-				map[string]string,
-			)
+		filters := make(
+			map[string][]string,
+		)
 
 		if len(document.Payload) > 0 {
 
@@ -378,17 +377,37 @@ func (s *Service) UpsertBatch(
 
 			for key, value := range payload {
 
-				str, ok := value.(string)
+				switch v := value.(type) {
 
-				if !ok {
-					continue
+				case string:
+
+					filters[key] = append(
+						filters[key],
+						v,
+					)
+
+				case []any:
+
+					for _, item := range v {
+
+						str, ok := item.(string)
+
+						if !ok {
+							continue
+						}
+
+						filters[key] = append(
+							filters[key],
+							str,
+						)
+					}
 				}
-
-				filters[key] = str
 			}
 		}
 
-		filtersByDocument[document.DocumentKey] = filters
+		filtersByDocument[
+			document.DocumentKey,
+		] = filters
 	}
 
 	err = s.filterRepository.ReplaceBatch(

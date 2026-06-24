@@ -32,12 +32,12 @@ func NewRepository(
 func (r *Repository) Replace(
 	ctx context.Context,
 	documentKey string,
-	filters map[string]string,
+	filters map[string][]string,
 ) error {
 
 	return r.ReplaceBatch(
 		ctx,
-		map[string]map[string]string{
+		map[string]map[string][]string{
 			documentKey: filters,
 		},
 	)
@@ -100,7 +100,7 @@ func (r *Repository) DeleteByDocumentKeys(
 
 func (r *Repository) ReplaceBatch(
 	ctx context.Context,
-	documents map[string]map[string]string,
+	documents map[string]map[string][]string,
 ) error {
 
 	if len(documents) == 0 {
@@ -137,16 +137,19 @@ func (r *Repository) ReplaceBatch(
 
 	for documentKey, filters := range documents {
 
-		for field, value := range filters {
+		for field, values := range filters {
 
-			rows = append(
-				rows,
-				filterRow{
-					DocumentKey: documentKey,
-					Field:       field,
-					Value:       value,
-				},
-			)
+			for _, value := range values {
+
+				rows = append(
+					rows,
+					filterRow{
+						DocumentKey: documentKey,
+						Field: field,
+						Value: value,
+					},
+				)
+			}
 		}
 	}
 

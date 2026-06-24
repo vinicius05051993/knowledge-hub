@@ -16,22 +16,49 @@ SELECT
 	d.*,
 	COALESCE(
 	(
-	    SELECT
-	        '{' +
-	        ISNULL(
-	            STRING_AGG(
-	                '"' +
-	                STRING_ESCAPE(df.field_name, 'json') +
-	                '":"' +
-	                STRING_ESCAPE(df.field_value, 'json') +
-	                '"',
-	                ','
-	            ),
-	            ''
-	        )
-	        + '}'
-	    FROM document_filters df
-	    WHERE df.document_key = d.document_key
+		SELECT
+			'{' +
+			ISNULL(
+				STRING_AGG(
+					field_json,
+					','
+				),
+				''
+			) +
+			'}'
+		FROM (
+			SELECT
+				'"' +
+				STRING_ESCAPE(
+					field_name,
+					'json'
+				) +
+				'":' +
+				CASE
+					WHEN COUNT(*) = 1 THEN
+						'"' +
+						STRING_ESCAPE(
+							MAX(field_value),
+							'json'
+						) +
+						'"'
+					ELSE
+						'[' +
+						STRING_AGG(
+							'"' +
+							STRING_ESCAPE(
+								field_value,
+								'json'
+							) +
+							'"',
+							','
+						) +
+						']'
+				END AS field_json
+			FROM document_filters
+			WHERE document_key = d.document_key
+			GROUP BY field_name
+		) grouped_fields
 	),
 	'{}'
 	) AS payload
@@ -42,22 +69,52 @@ const baseSelectTop1 = `
 SELECT TOP 1
 	d.*,
 	COALESCE(
-		(
-			SELECT
-				'{' +
+	(
+		SELECT
+			'{' +
+			ISNULL(
 				STRING_AGG(
-					'"' +
-					STRING_ESCAPE(df.field_name, 'json') +
-					'":"' +
-					STRING_ESCAPE(df.field_value, 'json') +
-					'"',
+					field_json,
 					','
+				),
+				''
+			) +
+			'}'
+		FROM (
+			SELECT
+				'"' +
+				STRING_ESCAPE(
+					field_name,
+					'json'
 				) +
-				'}'
-			FROM document_filters df
-			WHERE df.document_key = d.document_key
-		),
-		'{}'
+				'":' +
+				CASE
+					WHEN COUNT(*) = 1 THEN
+						'"' +
+						STRING_ESCAPE(
+							MAX(field_value),
+							'json'
+						) +
+						'"'
+					ELSE
+						'[' +
+						STRING_AGG(
+							'"' +
+							STRING_ESCAPE(
+								field_value,
+								'json'
+							) +
+							'"',
+							','
+						) +
+						']'
+				END AS field_json
+			FROM document_filters
+			WHERE document_key = d.document_key
+			GROUP BY field_name
+		) grouped_fields
+	),
+	'{}'
 	) AS payload
 FROM documents d
 `
