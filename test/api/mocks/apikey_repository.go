@@ -21,6 +21,29 @@ type APIKeyRepository struct {
 		ctx context.Context,
 		namespace string,
 	) error
+
+	UpdateHashByNamespaceFunc func(
+		ctx context.Context,
+		namespace string,
+		hash string,
+	) error
+}
+
+func (m *APIKeyRepository) UpdateHashByNamespace(
+	ctx context.Context,
+	namespace string,
+	hash string,
+) error {
+
+	if m.UpdateHashByNamespaceFunc == nil {
+		return nil
+	}
+
+	return m.UpdateHashByNamespaceFunc(
+		ctx,
+		namespace,
+		hash,
+	)
 }
 
 func (m *APIKeyRepository) FindByHash(

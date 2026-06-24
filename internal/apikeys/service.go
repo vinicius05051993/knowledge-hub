@@ -23,6 +23,12 @@ type RepositoryInterface interface {
 		ctx context.Context,
 		namespace string,
 	) error
+
+	UpdateHashByNamespace(
+		ctx context.Context,
+		namespace string,
+		hash string,
+	) error
 }
 
 type Service struct {
@@ -98,6 +104,43 @@ func (s *Service) Create(
 	err = s.repository.Create(
 		ctx,
 		key,
+	)
+
+	if err != nil {
+		return "", err
+	}
+
+	return apiKey, nil
+}
+
+func (s *Service) ResetByNamespace(
+	ctx context.Context,
+	namespace string,
+) (string, error) {
+
+	random := make([]byte, 32)
+
+	_, err := rand.Read(random)
+
+	if err != nil {
+		return "", err
+	}
+
+	apiKey := "sk_live_" +
+		hex.EncodeToString(random)
+
+	hash := sha256.Sum256(
+		[]byte(apiKey),
+	)
+
+	hashString := hex.EncodeToString(
+		hash[:],
+	)
+
+	err = s.repository.UpdateHashByNamespace(
+		ctx,
+		namespace,
+		hashString,
 	)
 
 	if err != nil {

@@ -85,6 +85,47 @@ func (r *Repository) Create(
 	return err
 }
 
+func (r *Repository) UpdateHashByNamespace(
+	ctx context.Context,
+	namespace string,
+	hash string,
+) error {
+
+	query := `
+	UPDATE api_keys
+	SET api_key_hash = ?
+	WHERE namespace = ?
+	`
+
+	query = r.db.Rebind(query)
+
+	result, err := r.db.ExecContext(
+		ctx,
+		query,
+		hash,
+		namespace,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf(
+			"namespace '%s' not found",
+			namespace,
+		)
+	}
+
+	return nil
+}
+
 func (r *Repository) DeleteByNamespace(
 	ctx context.Context,
 	namespace string,

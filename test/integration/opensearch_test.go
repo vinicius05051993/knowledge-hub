@@ -27,32 +27,32 @@ func TestCreateDocumentsIndex(
 	}
 }
 
-func TestDocumentsIndexExists(
+func TestCreateDocumentsIndexTwice(
 	t *testing.T,
 ) {
-
-	ensureDocumentsIndex(t)
 
 	cfg := createTestConfig()
 
 	client :=
 		opensearch.NewClient(cfg)
 
-	exists, err :=
-		opensearch.IndexExists(
+	err :=
+		opensearch.CreateDocumentsIndex(
 			context.Background(),
 			client,
-			opensearch.DocumentsIndex,
 		)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if !exists {
-
-		t.Fatal(
-			"documents index does not exist",
+	err =
+		opensearch.CreateDocumentsIndex(
+			context.Background(),
+			client,
 		)
+
+	if err != nil {
+		t.Fatal(err)
 	}
 }
