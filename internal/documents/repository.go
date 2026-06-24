@@ -6,6 +6,7 @@ import (
 	"log"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -368,30 +369,43 @@ func (r *Repository) Search(
 					continue
 				}
 
-				query += `
-				AND EXISTS (
-					SELECT 1
-					FROM document_filters f
-					WHERE
-						f.document_key =
-							d.document_key
-					AND f.field_name = ?
-					AND f.field_value = ?
-				)
-				`
-
-				args = append(
-					args,
-					field,
+				values := strings.Split(
 					value,
+					",",
 				)
+
+				for _, value := range values {
+
+					value = strings.TrimSpace(
+						value,
+					)
+
+					if value == "" {
+						continue
+					}
+
+					query += `
+					AND EXISTS (
+						SELECT 1
+						FROM document_filters f
+						WHERE
+							f.document_key = d.document_key
+						AND f.field_name = ?
+						AND f.field_value = ?
+					)
+					`
+
+					args = append(
+						args,
+						field,
+						value,
+					)
+				}
 			}
 
 		} else {
 
-			query += `
-			AND (
-			`
+			orConditions := ""
 
 			first := true
 
@@ -403,37 +417,57 @@ func (r *Repository) Search(
 					continue
 				}
 
-				if !first {
-
-					query += `
-					OR
-					`
-				}
-
-				query += `
-				EXISTS (
-					SELECT 1
-					FROM document_filters f
-					WHERE
-						f.document_key =
-							d.document_key
-					AND f.field_name = ?
-					AND f.field_value = ?
-				)
-				`
-
-				args = append(
-					args,
-					field,
+				values := strings.Split(
 					value,
+					",",
 				)
 
-				first = false
+				for _, value := range values {
+
+					value = strings.TrimSpace(
+						value,
+					)
+
+					if value == "" {
+						continue
+					}
+
+					if !first {
+
+						orConditions += `
+						OR
+						`
+					}
+
+					orConditions += `
+					EXISTS (
+						SELECT 1
+						FROM document_filters f
+						WHERE
+							f.document_key = d.document_key
+						AND f.field_name = ?
+						AND f.field_value = ?
+					)
+					`
+
+					args = append(
+						args,
+						field,
+						value,
+					)
+
+					first = false
+				}
 			}
 
-			query += `
-			)
-			`
+			if orConditions != "" {
+
+				query += `
+				AND (
+				` + orConditions + `
+				)
+				`
+			}
 		}
 	}
 
