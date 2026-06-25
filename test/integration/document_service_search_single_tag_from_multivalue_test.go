@@ -1,0 +1,144 @@
+package integration
+
+import (
+	"context"
+	"testing"
+
+	"indexer/internal/documentfilters"
+	"indexer/internal/documents"
+	"indexer/internal/opensearch"
+)
+
+func TestDocumentServiceSearchSingleTagFromMultiValue(
+	t *testing.T,
+) {
+
+	ensureDocumentsIndex(t)
+
+	db := createDB(t)
+
+	cfg := createTestConfig()
+
+	searchClient :=
+		opensearch.NewClient(cfg)
+
+	searchService :=
+		opensearch.NewService(
+			searchClient,
+		)
+
+	documentRepository :=
+		documents.NewRepository(db)
+
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
+	documentService :=
+		documents.NewService(
+			documentRepository,
+			filterRepository,
+			searchService,
+		)
+
+	namespace :=
+		"single-tag-multivalue"
+
+	t.Cleanup(func() {
+
+		_ = documentService.DeleteByNamespace(
+			context.Background(),
+			namespace,
+		)
+
+		_ = filterRepository.DeleteByDocumentKeys(
+			context.Background(),
+			[]string{
+				"single-tag-multivalue:doc-1",
+				"single-tag-multivalue:doc-2",
+			},
+		)
+
+		syncDocuments(
+			t,
+			db,
+		)
+
+		_ = db.Close()
+	})
+
+	err := documentService.Upsert(
+		context.Background(),
+		&documents.Document{
+			Namespace:  namespace,
+			ExternalID: "doc-1",
+			Payload: []byte(`{
+				"tag":[
+					"tag1",
+					"tag2",
+					"tag3"
+				]
+			}`),
+		},
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = documentService.Upsert(
+		context.Background(),
+		&documents.Document{
+			Namespace:  namespace,
+			ExternalID: "doc-2",
+			Payload: []byte(`{
+				"tag":[
+					"tag4"
+				]
+			}`),
+		},
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	syncDocuments(
+		t,
+		db,
+	)
+
+	results, err :=
+		documentService.Search(
+			context.Background(),
+			"",
+			0,
+			10,
+			map[string]string{
+				"tag": "tag2",
+			},
+			documents.FilterTypeAnd,
+		)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(results) != 1 {
+
+		t.Fatalf(
+			"expected 1 document got %d",
+			len(results),
+		)
+	}
+
+	if results[0].ExternalID !=
+		"doc-1" {
+
+		t.Fatalf(
+			"expected doc-1 got %s",
+			results[0].ExternalID,
+		)
+	}
+}

@@ -45,11 +45,6 @@ func CreateDocumentsIndex(
 		DocumentsIndex,
 	)
 
-	log.Printf(
-		"CreateDocumentsIndex url=%s",
-		url,
-	)
-
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodPut,
@@ -107,10 +102,6 @@ func CreateDocumentsIndex(
 			content,
 			[]byte("resource_already_exists_exception"),
 		) {
-
-			log.Printf(
-				"CreateDocumentsIndex index already exists",
-			)
 
 			return nil
 		}
