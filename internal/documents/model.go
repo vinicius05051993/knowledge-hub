@@ -6,6 +6,7 @@ const (
 	SyncStatusSynced = iota
 	SyncStatusPendingUpsert
 	SyncStatusPendingDelete
+	SyncStatusPendingDeindex
 )
 
 type Document struct {

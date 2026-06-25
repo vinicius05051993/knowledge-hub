@@ -155,6 +155,15 @@ func syncDocuments(
 		t.Fatal(err)
 	}
 
+	err = syncService.ProcessPendingDeindexes(
+		context.Background(),
+		1000,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	err = syncService.ProcessPendingDeletes(
 		context.Background(),
 		1000,

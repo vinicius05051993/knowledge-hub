@@ -588,6 +588,47 @@ func (r *Repository) FindPendingDeletes(
 	return documents, nil
 }
 
+func (r *Repository) FindPendingDeindexes(
+	ctx context.Context,
+	limit int,
+) ([]Document, error) {
+
+	query := `
+	SELECT TOP ` + strconv.Itoa(limit) + ` *
+	FROM documents
+	WHERE sync_status = ?
+	ORDER BY id
+	`
+
+	query = r.db.Rebind(query)
+
+	var documents []Document
+
+	err := r.db.SelectContext(
+		ctx,
+		&documents,
+		query,
+		SyncStatusPendingDeindex,
+	)
+
+	if err != nil {
+
+		log.Printf(
+			"FindPendingDeIndex failed\nlimit=%d\nquery:\n%s\nerror:%v",
+			limit,
+			query,
+			err,
+		)
+
+		return nil, fmt.Errorf(
+			"documents.Repository.FindPendingDeIndex: %w",
+			err,
+		)
+	}
+
+	return documents, nil
+}
+
 func (r *Repository) CountPendingUpserts(
 	ctx context.Context,
 ) (int, error) {
@@ -657,6 +698,44 @@ func (r *Repository) CountPendingDeletes(
 
 		return 0, fmt.Errorf(
 			"documents.Repository.CountPendingDeletes: %w",
+			err,
+		)
+	}
+
+	return count, nil
+}
+
+func (r *Repository) CountPendingDeindexes(
+	ctx context.Context,
+) (int, error) {
+
+	var count int
+
+	query := `
+	SELECT COUNT(*)
+	FROM documents
+	WHERE sync_status = ?
+	`
+
+	query = r.db.Rebind(query)
+
+	err := r.db.GetContext(
+		ctx,
+		&count,
+		query,
+		SyncStatusPendingDeindex,
+	)
+
+	if err != nil {
+
+		log.Printf(
+			"CountPendingDeIndex failed\nquery:\n%s\nerror:%v",
+			query,
+			err,
+		)
+
+		return 0, fmt.Errorf(
+			"documents.Repository.CountPendingDeIndex: %w",
 			err,
 		)
 	}

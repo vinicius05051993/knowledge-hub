@@ -273,6 +273,7 @@ func (s *Service) Search(
 }
 
 func (s *Service) prepareDocument(
+	ctx context.Context,
 	document *Document,
 ) error {
 
@@ -285,16 +286,61 @@ func (s *Service) prepareDocument(
 
 	document.DeletedAt = nil
 
+	document.DocumentKey =
+		document.Namespace +
+			":" +
+			document.ExternalID
+
 	hasSearchContent :=
 		strings.TrimSpace(document.Title) != "" ||
 			strings.TrimSpace(document.Text) != ""
 
-	if hasSearchContent {
-		document.SyncStatus =
-			SyncStatusPendingUpsert
+	existing, err :=
+		s.repository.FindByExternalID(
+			ctx,
+			document.Namespace,
+			document.ExternalID,
+		)
+
+	if err == nil {
+
+		existingHasSearchContent :=
+			strings.TrimSpace(existing.Title) != "" ||
+				strings.TrimSpace(existing.Text) != ""
+
+		switch {
+
+		case hasSearchContent:
+
+			document.SyncStatus =
+				SyncStatusPendingUpsert
+
+		case existingHasSearchContent:
+
+			document.SyncStatus =
+				SyncStatusPendingDeindex
+
+		default:
+
+			document.SyncStatus =
+				SyncStatusSynced
+		}
+
+		document.CreatedAt =
+			existing.CreatedAt
+
 	} else {
-		document.SyncStatus =
-			SyncStatusSynced
+
+		if hasSearchContent {
+
+			document.SyncStatus =
+				SyncStatusPendingUpsert
+
+		} else {
+
+			document.SyncStatus =
+				SyncStatusSynced
+		}
 	}
 
 	now := time.Now().UTC()
@@ -304,11 +350,6 @@ func (s *Service) prepareDocument(
 	}
 
 	document.UpdatedAt = now
-
-	document.DocumentKey =
-		document.Namespace +
-			":" +
-			document.ExternalID
 
 	return nil
 }
@@ -325,6 +366,7 @@ func (s *Service) UpsertBatch(
 	for _, document := range documents {
 
 		err := s.prepareDocument(
+			ctx,
 			document,
 		)
 

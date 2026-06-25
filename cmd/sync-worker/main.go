@@ -162,6 +162,19 @@ func runCycle(
 		)
 	}
 
+	err = syncService.ProcessPendingDeindexes(
+		ctx,
+		batchSize,
+	)
+
+	if err != nil {
+
+		log.Printf(
+			"deindex sync error: %v",
+			err,
+		)
+	}
+
 	err = syncService.ProcessPendingDeletes(
 		ctx,
 		batchSize,

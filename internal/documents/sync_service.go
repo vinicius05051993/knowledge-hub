@@ -45,6 +45,103 @@ func NewSyncService(
 	}
 }
 
+func (s *SyncService) ProcessPendingDeindexes(
+	ctx context.Context,
+	limit int,
+) error {
+
+	pending, err :=
+		s.repository.CountPendingDeindexes(
+			ctx,
+		)
+
+	if err == nil {
+
+		metrics.PendingDeletes.Set(
+			float64(pending),
+		)
+	}
+
+	documents, err :=
+		s.repository.FindPendingDeindexes(
+			ctx,
+			limit,
+		)
+
+	if err != nil {
+
+		metrics.SyncDeleteErrorsTotal.Inc()
+
+		return err
+	}
+
+	if len(documents) == 0 {
+
+		metrics.PendingDeletes.Set(0)
+
+		return nil
+	}
+
+	documentKeys :=
+		make(
+			[]string,
+			0,
+			len(documents),
+		)
+
+	for _, document := range documents {
+
+		documentKeys = append(
+			documentKeys,
+			document.DocumentKey,
+		)
+	}
+
+	err = s.indexer.DeleteDocuments(
+		ctx,
+		documentKeys,
+	)
+
+	if err != nil {
+
+		metrics.SyncDeleteErrorsTotal.Inc()
+
+		return err
+	}
+
+	metrics.SyncDeletesTotal.Add(
+		float64(
+			len(documentKeys),
+		),
+	)
+
+	err = s.repository.MarkSyncedByDocumentKeys(
+		ctx,
+		documentKeys,
+	)
+
+	if err != nil {
+
+		metrics.SyncDeleteErrorsTotal.Inc()
+
+		return err
+	}
+
+	pending, err =
+		s.repository.CountPendingDeindexes(
+			ctx,
+		)
+
+	if err == nil {
+
+		metrics.PendingDeletes.Set(
+			float64(pending),
+		)
+	}
+
+	return nil
+}
+
 func (s *SyncService) ProcessPendingUpserts(
 	ctx context.Context,
 	limit int,
