@@ -103,16 +103,7 @@ func (s *Service) Delete(
 			namespace+":"+externalID,
 		)
 	}
-
-	err = s.filterRepository.DeleteByDocumentKeys(
-		ctx,
-		documentKeys,
-	)
-
-	if err != nil {
-		return err
-	}
-
+	
 	return nil
 }
 

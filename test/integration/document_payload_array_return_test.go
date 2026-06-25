@@ -52,13 +52,6 @@ func TestDocumentPayloadArrayReturned(
 			namespace,
 		)
 
-		_ = filterRepository.DeleteByDocumentKeys(
-			context.Background(),
-			[]string{
-				"payload-array-return:doc-1",
-			},
-		)
-
 		syncDocuments(
 			t,
 			db,

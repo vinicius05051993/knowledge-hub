@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"indexer/internal/documentfilters"
 	"indexer/internal/metrics"
 	"indexer/internal/opensearch"
 )
@@ -27,16 +28,19 @@ type SyncIndexer interface {
 
 type SyncService struct {
 	repository *Repository
+	filterRepository *documentfilters.Repository
 	indexer    SyncIndexer
 }
 
 func NewSyncService(
 	repository *Repository,
+	filterRepository *documentfilters.Repository,
 	indexer SyncIndexer,
 ) *SyncService {
 
 	return &SyncService{
 		repository: repository,
+		filterRepository: filterRepository,
 		indexer:    indexer,
 	}
 }
@@ -239,10 +243,20 @@ func (s *SyncService) ProcessPendingDeletes(
 	}
 
 	metrics.SyncDeletesTotal.Add(
-		float64(
-			len(documentKeys),
-		),
+		float64(len(documentKeys)),
 	)
+
+	err = s.filterRepository.DeleteByDocumentKeys(
+		ctx,
+		documentKeys,
+	)
+
+	if err != nil {
+
+		metrics.SyncDeleteErrorsTotal.Inc()
+
+		return err
+	}
 
 	err = s.repository.DeleteByDocumentKeys(
 		ctx,

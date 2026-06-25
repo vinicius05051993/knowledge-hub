@@ -51,14 +51,6 @@ func TestDocumentServiceSearchOrMultiValue(
 			namespace,
 		)
 
-		_ = filterRepository.DeleteByDocumentKeys(
-			context.Background(),
-			[]string{
-				"or-multi-value:doc-1",
-				"or-multi-value:doc-2",
-			},
-		)
-
 		syncDocuments(
 			t,
 			db,

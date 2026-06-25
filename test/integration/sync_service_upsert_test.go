@@ -7,6 +7,7 @@ import (
 
 	"indexer/internal/documents"
 	"indexer/internal/opensearch"
+	"indexer/internal/documentfilters"
 )
 
 func TestSyncServiceProcessPendingUpserts(
@@ -52,9 +53,15 @@ func TestSyncServiceProcessPendingUpserts(
 		_ = db.Close()
 	})
 
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
 	syncService :=
 		documents.NewSyncService(
 			documentRepository,
+			filterRepository,
 			searchService,
 		)
 

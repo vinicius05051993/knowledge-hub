@@ -134,9 +134,15 @@ func syncDocuments(
 	documentRepository :=
 		documents.NewRepository(db)
 
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
 	syncService :=
 		documents.NewSyncService(
 			documentRepository,
+			filterRepository,
 			searchService,
 		)
 

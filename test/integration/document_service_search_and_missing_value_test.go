@@ -51,14 +51,6 @@ func TestDocumentServiceSearchAndMissingValue(
 			namespace,
 		)
 
-		_ = filterRepository.DeleteByDocumentKeys(
-			context.Background(),
-			[]string{
-				"and-missing-value:doc-1",
-				"and-missing-value:doc-2",
-			},
-		)
-
 		syncDocuments(
 			t,
 			db,

@@ -56,7 +56,7 @@ func TestDocumentFiltersRepository(
 		_ = filterRepository.DeleteByDocumentKeys(
 			context.Background(),
 			[]string{
-				"test:filters-test",
+				"tessst:filters-test",
 			},
 		)
 

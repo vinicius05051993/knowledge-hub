@@ -52,14 +52,6 @@ func TestDocumentServiceSearchSingleTagFromMultiValue(
 			namespace,
 		)
 
-		_ = filterRepository.DeleteByDocumentKeys(
-			context.Background(),
-			[]string{
-				"single-tag-multivalue:doc-1",
-				"single-tag-multivalue:doc-2",
-			},
-		)
-
 		syncDocuments(
 			t,
 			db,

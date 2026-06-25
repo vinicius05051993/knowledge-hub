@@ -11,6 +11,7 @@ import (
 
 	"indexer/internal/config"
 	"indexer/internal/database"
+	"indexer/internal/documentfilters"
 	"indexer/internal/documents"
 	"indexer/internal/metrics"
 	"indexer/internal/opensearch"
@@ -73,9 +74,15 @@ func main() {
 			db,
 		)
 
+	filterRepository :=
+		documentfilters.NewRepository(
+			db,
+		)
+
 	syncService :=
 		documents.NewSyncService(
 			documentRepository,
+			filterRepository,
 			opensearchService,
 		)
 

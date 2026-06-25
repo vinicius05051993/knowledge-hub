@@ -65,13 +65,6 @@ func TestSearchEndpoint(
 			"666",
 		)
 
-		_ = filterRepository.DeleteByDocumentKeys(
-			context.Background(),
-			[]string{
-				"search2-test:666",
-			},
-		)
-
 		_ = documentService.DeleteByNamespace(
 			context.Background(),
 			"search2-test",

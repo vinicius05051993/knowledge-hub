@@ -51,15 +51,6 @@ func TestDocumentServiceSearchOrMultipleFields(
 			namespace,
 		)
 
-		_ = filterRepository.DeleteByDocumentKeys(
-			context.Background(),
-			[]string{
-				"or-multiple-fields:doc-tag",
-				"or-multiple-fields:doc-brand",
-				"or-multiple-fields:doc-other",
-			},
-		)
-
 		syncDocuments(
 			t,
 			db,

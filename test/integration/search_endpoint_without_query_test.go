@@ -65,13 +65,6 @@ func TestSearchEndpointWithoutQuery(
 			"only-filter",
 		)
 
-		_ = filterRepository.DeleteByDocumentKeys(
-			context.Background(),
-			[]string{
-				"search3-test:only-filter",
-			},
-		)
-
 		_ = documentService.DeleteByNamespace(
 			context.Background(),
 			"search3-test",
