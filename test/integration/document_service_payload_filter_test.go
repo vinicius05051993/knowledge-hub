@@ -90,6 +90,7 @@ func TestDocumentServiceSearchPayloadOnlyByFilter(
 				"sku": "ABC123",
 			},
 			"",
+			nil,
 		)
 
 	if err != nil {

@@ -122,6 +122,7 @@ func TestDocumentServiceSearchOrMultipleFields(
 				"brand": "Dell",
 			},
 			documents.FilterTypeOr,
+			nil,
 		)
 
 	if err != nil {

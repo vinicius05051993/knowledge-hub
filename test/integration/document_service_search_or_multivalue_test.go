@@ -108,6 +108,7 @@ func TestDocumentServiceSearchOrMultiValue(
 				"tag": "tag1,tag5",
 			},
 			documents.FilterTypeOr,
+			nil,
 		)
 
 	if err != nil {

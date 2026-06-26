@@ -108,6 +108,7 @@ func TestDocumentServiceSearchAndMissingValue(
 				"tag": "tag1,tag5",
 			},
 			documents.FilterTypeAnd,
+			nil,
 		)
 
 	if err != nil {

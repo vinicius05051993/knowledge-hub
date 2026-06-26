@@ -59,6 +59,21 @@ func (h *Handler) Search(
 		request.Limit = 100
 	}
 
+	err = normalizeOrder(request.Order)
+
+	if err != nil {
+
+		metrics.SearchErrorsTotal.Inc()
+
+		http.Error(
+			w,
+			err.Error(),
+			http.StatusBadRequest,
+		)
+
+		return
+	}
+
 	results, err :=
 		h.service.Search(
 			r.Context(),
@@ -67,6 +82,7 @@ func (h *Handler) Search(
 			request.Limit,
 			request.Filters,
 			request.FilterType,
+			request.Order,
 		)
 
 	if err != nil {

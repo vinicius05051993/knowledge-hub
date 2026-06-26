@@ -111,6 +111,7 @@ func TestDocumentServiceSearchSingleTagFromMultiValue(
 				"tag": "tag2",
 			},
 			documents.FilterTypeAnd,
+			nil,
 		)
 
 	if err != nil {

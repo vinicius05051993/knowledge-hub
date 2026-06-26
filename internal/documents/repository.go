@@ -319,24 +319,40 @@ func (r *Repository) Search(
 	limit int,
 	filters map[string]string,
 	filterType string,
+	order *SearchOrder,
 ) ([]Document, error) {
 
-	query := baseSelect + `
-	WHERE 1 = 1
-	AND d.deleted_at IS NULL
-	`
+	if len(documentKeys) > 0 {
+		order = nil
+	}
 
-	args := make(
-		[]any,
-		0,
-	)
+	args := make([]any, 0)
+
+	query := baseSelect
+
+	if order != nil {
+
+		query += `
+LEFT JOIN document_filters order_filter
+	ON order_filter.document_key = d.document_key
+	AND order_filter.field_name = ?
+`
+
+		args = append(
+			args,
+			order.Field,
+		)
+	}
+
+	query += `
+WHERE 1 = 1
+AND d.deleted_at IS NULL
+`
 
 	if len(documentKeys) > 0 {
 
 		inQuery, inArgs, err := sqlx.In(
-			`
-			d.document_key IN (?)
-			`,
+			`d.document_key IN (?)`,
 			documentKeys,
 		)
 
@@ -345,7 +361,7 @@ func (r *Repository) Search(
 		}
 
 		query += `
-		AND ` + inQuery
+AND ` + inQuery
 
 		args = append(
 			args,
@@ -363,9 +379,7 @@ func (r *Repository) Search(
 
 			for field, value := range filters {
 
-				if !validFilterField.MatchString(
-					field,
-				) {
+				if !validFilterField.MatchString(field) {
 					continue
 				}
 
@@ -376,24 +390,22 @@ func (r *Repository) Search(
 
 				for _, value := range values {
 
-					value = strings.TrimSpace(
-						value,
-					)
+					value = strings.TrimSpace(value)
 
 					if value == "" {
 						continue
 					}
 
 					query += `
-					AND EXISTS (
-						SELECT 1
-						FROM document_filters f
-						WHERE
-							f.document_key = d.document_key
-						AND f.field_name = ?
-						AND f.field_value = ?
-					)
-					`
+AND EXISTS (
+	SELECT 1
+	FROM document_filters f
+	WHERE
+		f.document_key = d.document_key
+	AND f.field_name = ?
+	AND f.field_value = ?
+)
+`
 
 					args = append(
 						args,
@@ -411,9 +423,7 @@ func (r *Repository) Search(
 
 			for field, value := range filters {
 
-				if !validFilterField.MatchString(
-					field,
-				) {
+				if !validFilterField.MatchString(field) {
 					continue
 				}
 
@@ -424,31 +434,28 @@ func (r *Repository) Search(
 
 				for _, value := range values {
 
-					value = strings.TrimSpace(
-						value,
-					)
+					value = strings.TrimSpace(value)
 
 					if value == "" {
 						continue
 					}
 
 					if !first {
-
 						orConditions += `
-						OR
-						`
+OR
+`
 					}
 
 					orConditions += `
-					EXISTS (
-						SELECT 1
-						FROM document_filters f
-						WHERE
-							f.document_key = d.document_key
-						AND f.field_name = ?
-						AND f.field_value = ?
-					)
-					`
+EXISTS (
+	SELECT 1
+	FROM document_filters f
+	WHERE
+		f.document_key = d.document_key
+	AND f.field_name = ?
+	AND f.field_value = ?
+)
+`
 
 					args = append(
 						args,
@@ -463,21 +470,24 @@ func (r *Repository) Search(
 			if orConditions != "" {
 
 				query += `
-				AND (
-				` + orConditions + `
-				)
-				`
+AND (
+` + orConditions + `
+)
+`
 			}
 		}
 	}
 
 	if len(documentKeys) == 0 {
 
-		query += `
-		ORDER BY d.id
-		OFFSET ? ROWS
-		FETCH NEXT ? ROWS ONLY
-		`
+		query += fmt.Sprintf(`
+ORDER BY %s %s
+OFFSET ? ROWS
+FETCH NEXT ? ROWS ONLY
+`,
+			buildOrderByExpression(order),
+			buildOrderDirection(order),
+		)
 
 		args = append(
 			args,
@@ -486,9 +496,7 @@ func (r *Repository) Search(
 		)
 	}
 
-	query = r.db.Rebind(
-		query,
-	)
+	query = r.db.Rebind(query)
 
 	var documents []Document
 
@@ -504,6 +512,42 @@ func (r *Repository) Search(
 	}
 
 	return documents, nil
+}
+
+func buildOrderByExpression(
+	order *SearchOrder,
+) string {
+
+	if order == nil {
+		return "d.id"
+	}
+
+	switch order.ValueType {
+
+	case OrderValueTypeString:
+		return "order_filter.field_value"
+
+	case OrderValueTypeNumber:
+		return "TRY_CAST(order_filter.field_value AS FLOAT)"
+
+	case OrderValueTypeDate:
+		return "TRY_CAST(order_filter.field_value AS DATETIME2)"
+	}
+
+	return "order_filter.field_value"
+}
+
+func buildOrderDirection(
+	order *SearchOrder,
+) string {
+
+	if order == nil {
+		return "ASC"
+	}
+
+	return strings.ToUpper(
+		string(order.Direction),
+	)
 }
 
 func (r *Repository) FindPendingUpserts(

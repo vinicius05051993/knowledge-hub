@@ -142,6 +142,7 @@ func TestDocumentServicePayloadOnlyNotIndexed(
 				"sku": "ABC123",
 			},
 			documents.FilterTypeAnd,
+			nil,
 		)
 
 	if err != nil {

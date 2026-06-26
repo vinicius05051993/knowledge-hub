@@ -102,6 +102,7 @@ func TestDocumentServiceSearchWithFilters(
 				"sku": "123",
 			},
 			"",
+			nil,
 		)
 
 	if err != nil {
@@ -250,6 +251,7 @@ func TestDocumentServiceSearchWithOrFilters(
 				"brand": "HP",
 			},
 			documents.FilterTypeOr,
+			nil,
 		)
 
 	if err != nil {
@@ -382,6 +384,7 @@ func TestDocumentServiceSearchWithAndFilters(
 				"brand": "HP",
 			},
 			documents.FilterTypeAnd,
+			nil,
 		)
 
 	if err != nil {
@@ -514,6 +517,7 @@ func TestDocumentServiceSearchDefaultFilterType(
 				"brand": "HP",
 			},
 			"",
+			nil,
 		)
 
 	if err != nil {

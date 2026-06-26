@@ -114,6 +114,7 @@ func (s *Service) Search(
 	limit int,
 	filters map[string]string,
 	filterType string,
+	order *SearchOrder,
 ) ([]SearchDocument, error) {
 
 	if filterType != FilterTypeOr {
@@ -129,6 +130,7 @@ func (s *Service) Search(
 			limit,
 			filters,
 			filterType,
+			order,
 		)
 
 		if err != nil {
@@ -178,7 +180,7 @@ func (s *Service) Search(
 			len(results),
 		)
 
-	order :=
+	documentOrder :=
 		make(
 			map[string]int,
 			len(results),
@@ -216,7 +218,7 @@ func (s *Service) Search(
 			result.DocumentKey,
 		)
 
-		order[
+		documentOrder[
 			result.DocumentKey,
 		] = i
 	}
@@ -229,6 +231,7 @@ func (s *Service) Search(
 			0,
 			filters,
 			filterType,
+			order,
 		)
 
 	if err != nil {
@@ -239,10 +242,10 @@ func (s *Service) Search(
 		documents,
 		func(i, j int) bool {
 
-			return order[
+			return documentOrder[
 				documents[i].DocumentKey,
 			] <
-				order[
+				documentOrder[
 					documents[j].DocumentKey,
 				]
 		},
