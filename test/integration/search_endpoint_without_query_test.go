@@ -132,9 +132,14 @@ func TestSearchEndpointWithoutQuery(
 		http.MethodPost,
 		"/search",
 		strings.NewReader(`{
-			"filters":{
-				"sku":"only-filter-test"
-			}
+			"filters": [
+				{
+					"field": "sku",
+					"operator": "eq",
+					"value": "only-filter-test",
+					"value_type": "string"
+				}
+			]
 		}`),
 	)
 

@@ -158,9 +158,14 @@ func TestSearchEndpointWithFilters(
 		"/search",
 		strings.NewReader(`{
 			"query":"Magento",
-			"filters":{
-				"sku":"abc"
-			}
+			"filters":[
+				{
+					"field":"sku",
+					"operator":"eq",
+					"value":"abc",
+					"value_type":"string"
+				}
+			]
 		}`),
 	)
 
@@ -369,10 +374,20 @@ func TestSearchEndpointWithOrFilters(
 		strings.NewReader(`{
 			"query":"Magento",
 			"filter_type":"or",
-			"filters":{
-				"sku":"abc",
-				"brand":"HP"
-			}
+			"filters":[
+				{
+					"field":"sku",
+					"operator":"eq",
+					"value":"abc",
+					"value_type":"string"
+				},
+				{
+					"field":"brand",
+					"operator":"eq",
+					"value":"HP",
+					"value_type":"string"
+				}
+			]
 		}`),
 	)
 

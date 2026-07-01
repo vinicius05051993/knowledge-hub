@@ -137,11 +137,16 @@ func TestSearchEndpointPaginationWithoutQuery(
 		http.MethodPost,
 		"/search",
 		strings.NewReader(`{
-			"filters":{
-				"sku":"pagination-no-query"
-			},
-			"offset":0,
-			"limit":1
+			"filters": [
+				{
+					"field": "sku",
+					"operator": "eq",
+					"value": "pagination-no-query",
+					"value_type": "string"
+				}
+			],
+			"offset": 0,
+			"limit": 1
 		}`),
 	)
 
@@ -187,11 +192,16 @@ func TestSearchEndpointPaginationWithoutQuery(
 		http.MethodPost,
 		"/search",
 		strings.NewReader(`{
-			"filters":{
-				"sku":"pagination-no-query"
-			},
-			"offset":1,
-			"limit":1
+			"filters": [
+				{
+					"field": "sku",
+					"operator": "eq",
+					"value": "pagination-no-query",
+					"value_type": "string"
+				}
+			],
+			"offset": 1,
+			"limit": 1
 		}`),
 	)
 
