@@ -104,8 +104,19 @@ func TestDocumentServiceSearchAndMissingValue(
 			"",
 			0,
 			10,
-			map[string]string{
-				"tag": "tag1,tag5",
+			[]documents.SearchFilter{
+				{
+					Field:     "tag",
+					Operator:  documents.FilterOperatorEqual,
+					Value:     "tag1",
+					ValueType: documents.OrderValueTypeString,
+				},
+				{
+					Field:     "tag",
+					Operator:  documents.FilterOperatorEqual,
+					Value:     "tag5",
+					ValueType: documents.OrderValueTypeString,
+				},
 			},
 			documents.FilterTypeAnd,
 			nil,

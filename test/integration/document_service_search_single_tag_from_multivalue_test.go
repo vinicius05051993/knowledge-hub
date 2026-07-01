@@ -107,8 +107,13 @@ func TestDocumentServiceSearchSingleTagFromMultiValue(
 			"",
 			0,
 			10,
-			map[string]string{
-				"tag": "tag2",
+			[]documents.SearchFilter{
+				{
+					Field:     "tag",
+					Operator:  documents.FilterOperatorEqual,
+					Value:     "tag2",
+					ValueType: documents.OrderValueTypeString,
+				},
 			},
 			documents.FilterTypeAnd,
 			nil,

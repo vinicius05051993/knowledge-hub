@@ -117,9 +117,19 @@ func TestDocumentServiceSearchOrMultipleFields(
 			"",
 			0,
 			10,
-			map[string]string{
-				"tag":   "tag1",
-				"brand": "Dell",
+			[]documents.SearchFilter{
+				{
+					Field:     "tag",
+					Operator:  documents.FilterOperatorEqual,
+					Value:     "tag1",
+					ValueType: documents.OrderValueTypeString,
+				},
+				{
+					Field:     "brand",
+					Operator:  documents.FilterOperatorEqual,
+					Value:     "Dell",
+					ValueType: documents.OrderValueTypeString,
+				},
 			},
 			documents.FilterTypeOr,
 			nil,

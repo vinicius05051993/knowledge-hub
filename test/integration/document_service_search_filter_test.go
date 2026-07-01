@@ -98,8 +98,13 @@ func TestDocumentServiceSearchWithFilters(
 			"Magento",
 			0,
 			10,
-			map[string]string{
-				"sku": "123",
+			[]documents.SearchFilter{
+				{
+					Field:     "sku",
+					Operator:  documents.FilterOperatorEqual,
+					Value:     "123",
+					ValueType: documents.OrderValueTypeString,
+				},
 			},
 			"",
 			nil,
@@ -246,9 +251,19 @@ func TestDocumentServiceSearchWithOrFilters(
 			"Magento",
 			0,
 			10,
-			map[string]string{
-				"sku":   "123",
-				"brand": "HP",
+			[]documents.SearchFilter{
+				{
+					Field:     "sku",
+					Operator:  documents.FilterOperatorEqual,
+					Value:     "123",
+					ValueType: documents.OrderValueTypeString,
+				},
+				{
+					Field:     "brand",
+					Operator:  documents.FilterOperatorEqual,
+					Value:     "HP",
+					ValueType: documents.OrderValueTypeString,
+				},
 			},
 			documents.FilterTypeOr,
 			nil,
@@ -379,9 +394,19 @@ func TestDocumentServiceSearchWithAndFilters(
 			"Magento",
 			0,
 			10,
-			map[string]string{
-				"sku":   "123",
-				"brand": "HP",
+			[]documents.SearchFilter{
+				{
+					Field:     "sku",
+					Operator:  documents.FilterOperatorEqual,
+					Value:     "123",
+					ValueType: documents.OrderValueTypeString,
+				},
+				{
+					Field:     "brand",
+					Operator:  documents.FilterOperatorEqual,
+					Value:     "HP",
+					ValueType: documents.OrderValueTypeString,
+				},
 			},
 			documents.FilterTypeAnd,
 			nil,
@@ -512,9 +537,19 @@ func TestDocumentServiceSearchDefaultFilterType(
 			"Magento",
 			0,
 			10,
-			map[string]string{
-				"sku":   "123",
-				"brand": "HP",
+			[]documents.SearchFilter{
+				{
+					Field:     "sku",
+					Operator:  documents.FilterOperatorEqual,
+					Value:     "123",
+					ValueType: documents.OrderValueTypeString,
+				},
+				{
+					Field:     "brand",
+					Operator:  documents.FilterOperatorEqual,
+					Value:     "HP",
+					ValueType: documents.OrderValueTypeString,
+				},
 			},
 			"",
 			nil,

@@ -112,7 +112,7 @@ func (s *Service) Search(
 	query string,
 	offset int,
 	limit int,
-	filters map[string]string,
+	filters []SearchFilter,
 	filterType string,
 	order *SearchOrder,
 ) ([]SearchDocument, error) {

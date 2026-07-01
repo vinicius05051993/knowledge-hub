@@ -138,8 +138,13 @@ func TestDocumentServicePayloadOnlyNotIndexed(
 			"",
 			0,
 			10,
-			map[string]string{
-				"sku": "ABC123",
+			[]documents.SearchFilter{
+				{
+					Field:     "sku",
+					Operator:  documents.FilterOperatorEqual,
+					Value:     "ABC123",
+					ValueType: documents.OrderValueTypeString,
+				},
 			},
 			documents.FilterTypeAnd,
 			nil,

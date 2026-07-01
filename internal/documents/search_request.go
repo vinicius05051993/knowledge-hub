@@ -15,6 +15,26 @@ const (
 	OrderValueTypeDate   OrderValueType = "date"
 )
 
+type FilterOperator string
+
+const (
+    FilterOperatorEqual FilterOperator = "eq"
+    FilterOperatorGreaterThan FilterOperator = "gt"
+    FilterOperatorGreaterThanOrEqual FilterOperator = "gte"
+    FilterOperatorLessThan FilterOperator = "lt"
+    FilterOperatorLessThanOrEqual FilterOperator = "lte"
+)
+
+type SearchFilter struct {
+	Field string `json:"field"`
+
+	Operator FilterOperator `json:"operator"`
+
+	Value string `json:"value"`
+
+	ValueType OrderValueType `json:"value_type"`
+}
+
 type SearchRequest struct {
 	Query string `json:"query"`
 
@@ -22,7 +42,7 @@ type SearchRequest struct {
 
 	Limit int `json:"limit"`
 
-	Filters map[string]string `json:"filters"`
+	Filters []SearchFilter `json:"filters"`
 
 	FilterType string `json:"filter_type"`
 

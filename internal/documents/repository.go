@@ -312,12 +312,101 @@ func (r *Repository) DeleteByExternalIDs(
 	return nil
 }
 
+func buildFilterCondition(
+	filter SearchFilter,
+) (string, []any, error) {
+
+	var comparison string
+
+	switch filter.Operator {
+
+	case FilterOperatorEqual:
+		comparison = "="
+
+	case FilterOperatorGreaterThan:
+		comparison = ">"
+
+	case FilterOperatorGreaterThanOrEqual:
+		comparison = ">="
+
+	case FilterOperatorLessThan:
+		comparison = "<"
+
+	case FilterOperatorLessThanOrEqual:
+		comparison = "<="
+
+	default:
+		return "", nil, fmt.Errorf(
+			"unsupported filter operator: %s",
+			filter.Operator,
+		)
+	}
+
+	var sql string
+
+	switch filter.ValueType {
+
+	case OrderValueTypeString:
+
+		sql = fmt.Sprintf(`
+EXISTS (
+	SELECT 1
+	FROM document_filters f
+	WHERE
+		f.document_key = d.document_key
+	AND f.field_name = ?
+	AND f.field_value %s ?
+)
+`, comparison)
+
+	case OrderValueTypeNumber:
+
+		sql = fmt.Sprintf(`
+EXISTS (
+	SELECT 1
+	FROM document_filters f
+	WHERE
+		f.document_key = d.document_key
+	AND f.field_name = ?
+	AND TRY_CAST(f.field_value AS FLOAT) %s TRY_CAST(? AS FLOAT)
+)
+`, comparison)
+
+	case OrderValueTypeDate:
+
+		sql = fmt.Sprintf(`
+EXISTS (
+	SELECT 1
+	FROM document_filters f
+	WHERE
+		f.document_key = d.document_key
+	AND f.field_name = ?
+	AND TRY_CAST(f.field_value AS DATETIME2) %s TRY_CAST(? AS DATETIME2)
+)
+`, comparison)
+
+	default:
+
+		return "", nil, fmt.Errorf(
+			"unsupported filter value type: %s",
+			filter.ValueType,
+		)
+	}
+
+	return sql,
+		[]any{
+			filter.Field,
+			filter.Value,
+		},
+		nil
+}
+
 func (r *Repository) Search(
 	ctx context.Context,
 	documentKeys []string,
 	offset int,
 	limit int,
-	filters map[string]string,
+	filters []SearchFilter,
 	filterType string,
 	order *SearchOrder,
 ) ([]Document, error) {
@@ -375,112 +464,65 @@ AND ` + inQuery
 
 	if len(filters) > 0 {
 
-		if filterType == FilterTypeAnd {
+		conditions := make(
+			[]string,
+			0,
+			len(filters),
+		)
 
-			for field, value := range filters {
+		for _, filter := range filters {
 
-				if !validFilterField.MatchString(field) {
-					continue
-				}
-
-				values := strings.Split(
-					value,
-					",",
-				)
-
-				for _, value := range values {
-
-					value = strings.TrimSpace(value)
-
-					if value == "" {
-						continue
-					}
-
-					query += `
-AND EXISTS (
-	SELECT 1
-	FROM document_filters f
-	WHERE
-		f.document_key = d.document_key
-	AND f.field_name = ?
-	AND f.field_value = ?
-)
-`
-
-					args = append(
-						args,
-						field,
-						value,
-					)
-				}
+			if !validFilterField.MatchString(
+				filter.Field,
+			) {
+				continue
 			}
 
-		} else {
+			condition, conditionArgs, err :=
+				buildFilterCondition(filter)
 
-			orConditions := ""
-
-			first := true
-
-			for field, value := range filters {
-
-				if !validFilterField.MatchString(field) {
-					continue
-				}
-
-				values := strings.Split(
-					value,
-					",",
-				)
-
-				for _, value := range values {
-
-					value = strings.TrimSpace(value)
-
-					if value == "" {
-						continue
-					}
-
-					if !first {
-						orConditions += `
-OR
-`
-					}
-
-					orConditions += `
-EXISTS (
-	SELECT 1
-	FROM document_filters f
-	WHERE
-		f.document_key = d.document_key
-	AND f.field_name = ?
-	AND f.field_value = ?
-)
-`
-
-					args = append(
-						args,
-						field,
-						value,
-					)
-
-					first = false
-				}
+			if err != nil {
+				return nil, err
 			}
 
-			if orConditions != "" {
+			conditions = append(
+				conditions,
+				condition,
+			)
 
-				query += `
+			args = append(
+				args,
+				conditionArgs...,
+			)
+		}
+
+		if len(conditions) > 0 {
+
+			separator := "\nAND\n"
+
+			if filterType == FilterTypeOr {
+				separator = "\nOR\n"
+			}
+
+			query += `
 AND (
-` + orConditions + `
+`
+
+			query += strings.Join(
+				conditions,
+				separator,
+			)
+
+			query += `
 )
 `
-			}
 		}
 	}
 
 	if len(documentKeys) == 0 {
 
-		query += fmt.Sprintf(`
+		query += fmt.Sprintf(
+			`
 ORDER BY %s %s
 OFFSET ? ROWS
 FETCH NEXT ? ROWS ONLY
@@ -545,9 +587,17 @@ func buildOrderDirection(
 		return "ASC"
 	}
 
-	return strings.ToUpper(
-		string(order.Direction),
-	)
+	switch order.Direction {
+
+	case SortDirectionAsc:
+		return "ASC"
+
+	case SortDirectionDesc:
+		return "DESC"
+
+	default:
+		return "ASC"
+	}
 }
 
 func (r *Repository) FindPendingUpserts(
