@@ -1,0 +1,2 @@
+ALTER TABLE document_filters
+ALTER COLUMN field_value VARCHAR(1000) NOT NULL;
